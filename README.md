@@ -12,7 +12,7 @@ A command-line tool that uses AI models to automatically generate merge request 
 
 - Python 3.8+
 - Git installed and accessible from the command line
-- API key for either OpenAI or Anthropic (set as environment variables)
+- API key for one of: OpenAI, Azure OpenAI, or Anthropic (set as environment variables)
 - uv package manager ([Learn more about uv](https://github.com/astral-sh/uv))
 
 ## Installation
@@ -30,6 +30,11 @@ cd mr-generator-agent
 # For OpenAI
 export OPENAI_API_KEY='your-openai-key'
 
+# For Azure OpenAI
+export AZURE_API_BASE='https://your-instance.services.ai.azure.com/'
+export AZURE_API_VERSION='2024-08-01-preview'
+export AZURE_API_KEY='your-azure-api-key'
+
 # For Anthropic
 export ANTHROPIC_API_KEY='your-anthropic-key'
 ```
@@ -43,7 +48,45 @@ The shell function will automatically create a virtual environment and install d
 Display the full list of options by running:
 
 ```bash
-uv run python main.py --help
+aimr --help
+```
+
+```
+usage: main.py [-h] [--target TARGET] [--model MODEL] [--verbose] [path]
+
+Generates a Merge Request Description from Git diffs using AI models.
+
+positional arguments:
+  path                  The directory path of the Git repository (defaults to current directory).
+
+options:
+  -h, --help           show this help message and exit
+  --target, -t TARGET  The target branch to merge into (defaults to showing working tree changes).
+  --model, -m MODEL    AI model to use. Available options:
+                       OpenAI:
+                         - gpt-4
+                         - gpt-4-turbo
+                         - gpt-3.5-turbo
+                       Azure OpenAI:
+                         - azure/o1-mini
+                         - azure/gpt-4
+                       Anthropic:
+                         - claude-3-opus
+                         - claude-3-sonnet
+                         - claude-2
+                         - claude-3 (alias for claude-3-opus)
+                       Defaults to gpt-4
+  --verbose, -v        Enable verbose output
+
+examples:
+  # Generate MR description for current branch
+  aimr
+
+  # Compare with target branch using specific model
+  aimr -t main -m claude-3-opus
+
+  # Use Azure OpenAI
+  aimr -m azure/o1-mini
 ```
 
 ### Basic Usage
@@ -68,17 +111,23 @@ You can specify different AI models using either `--model` or `-m` flag:
 
 ```bash
 # OpenAI Models
-uv run python main.py -m gpt-4
-uv run python main.py -m gpt-4-turbo
-uv run python main.py -m gpt-3.5-turbo
+aimr -m gpt-4
+aimr -m gpt-4-turbo
+aimr -m gpt-3.5-turbo
+
+# Azure OpenAI Models
+aimr -m azure/o1-mini
+aimr -m azure/gpt-4
 
 # Anthropic Models
-uv run python main.py -m claude-3-opus
-uv run python main.py -m claude-3-sonnet
-uv run python main.py -m claude-2
+aimr -m claude-3-opus
+aimr -m claude-3-sonnet
+aimr -m claude-2
 ```
 
-The tool will automatically map common model aliases to their full versions (e.g., 'claude-3' → 'claude-3-opus-20240229')
+The tool will automatically:
+- Map common model aliases to their full versions (e.g., 'claude-3' → 'claude-3-opus-20240229')
+- Route requests to the appropriate API based on the model prefix (e.g., 'azure/' for Azure OpenAI)
 
 ### Creating a Shell Function (Optional)
 

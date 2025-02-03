@@ -6,8 +6,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "GitPython>=3.1.0",
-    "openai==0.28.0",
+    "openai[azure]>=1.0.0",  # For both standard and Azure OpenAI support
     "anthropic>=0.3.0",
+    "tiktoken>=0.5.0",  # For token counting
 ]
 
 [tool.uv]
