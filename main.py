@@ -200,6 +200,7 @@ def print_header(text, color=BLUE):
 
 def main():
     parser = argparse.ArgumentParser(
+        prog="aimr",
         description="Generates a Merge Request Description from Git diffs using AI models.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -213,6 +214,13 @@ examples:
   # Compare with target branch using specific model
   aimr -t main -m claude-3-sonnet
 
+  # Create GitLab MR with description
+  glab mr create -d "$(aimr -s -t master)" -t "your title"
+  glab mr create -d "$(aimr -s -t master)" --fill  # Use commit info for title
+
+  # Create GitHub PR with description
+  gh pr create -b "$(aimr -s -t main)" -t "your title"
+  gh pr create -b "$(aimr -s -t main)" --fill  # Use commit info for title
 
 """)
     parser.add_argument(
@@ -253,6 +261,11 @@ Defaults to azure/o1-mini"""
         action="store_true",
         help="Enable verbose output"
     )
+    parser.add_argument(
+        "--silent", "-s",
+        action="store_true",
+        help="Silent mode - only output the model response (useful with glab mr create -d)"
+    )
     args = parser.parse_args()
 
     # Detect provider and normalize model name
@@ -261,7 +274,7 @@ Defaults to azure/o1-mini"""
     try:
         repo = git.Repo(args.path)
     except git.exc.InvalidGitRepositoryError:
-        print(f"Error: Directory '{args.path}' is not a valid Git repository.")
+        print(f"Error: Directory '{args.path}' is not a valid Git repository.", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -273,29 +286,33 @@ Defaults to azure/o1-mini"""
         target_branch = args.target
         local_branches = [h.name for h in repo.heads]
         if target_branch not in local_branches:
-            print(f"Error: Target branch '{target_branch}' does not exist in the repository.")
+            print(f"Error: Target branch '{target_branch}' does not exist in the repository.", file=sys.stderr)
             sys.exit(1)
         diff = repo.git.diff(f"{target_branch}...{current_branch}")
     else:
         diff = repo.git.diff()
 
     if not diff.strip():
-        print("No changes found in the Git repository.")
+        print("No changes found in the Git repository.", file=sys.stderr)
         sys.exit(0)
 
-    print_header("Repository Information")
-    print(f"Repository: {os.path.abspath(args.path)}")
-    print(f"Current branch: {current_branch}")
-    if args.target:
-        print(f"Target branch: {args.target}")
+    # Only show these in non-silent mode
+    if not args.silent:
+        print_header("Repository Information")
+        print(f"Repository: {os.path.abspath(args.path)}")
+        print(f"Current branch: {current_branch}")
+        if args.target:
+            print(f"Target branch: {args.target}")
 
-    # Add token count information
-    user_prompt = generate_user_prompt(diff)
-    print_header("\nToken Information")
-    print_token_info(user_prompt, SYSTEM_PROMPT, args.verbose)
+        # Add token count information
+        user_prompt = generate_user_prompt(diff)
+        print_header("\nToken Information")
+        print_token_info(user_prompt, SYSTEM_PROMPT, args.verbose)
 
-    print_header(f"\nProcessing Merge Request Description")
-    print(f"Using {provider} ({model})...")
+        print_header(f"\nProcessing Merge Request Description")
+        print(f"Using {provider} ({model})...")
+    else:
+        user_prompt = generate_user_prompt(diff)
 
     try:
         if provider == "openai":
@@ -309,7 +326,7 @@ Defaults to azure/o1-mini"""
                 user_prompt,
                 SYSTEM_PROMPT,
                 model,
-                args.verbose
+                args.verbose and not args.silent  # Only show verbose output if not in silent mode
             )
         else:  # anthropic
             merge_request = generate_with_anthropic(
@@ -318,16 +335,22 @@ Defaults to azure/o1-mini"""
                 model
             )
 
-        # Print separator before merge request
-        print_separator()
-        if args.verbose:
-            print(f"\n{BOLD}### Merge Request ###\n{ENDC}")
-        print(merge_request)
-        print_separator()
+        if not args.silent:
+            # Print separator before merge request
+            print_separator()
+            if args.verbose:
+                print(f"\n{BOLD}### Merge Request ###\n{ENDC}")
 
-        # Print response token count
-        print_header("\nResponse Information")
-        print(f"Response tokens: {count_tokens(merge_request, 'gpt-4')}")
+        # Always print the merge request
+        print(merge_request)
+
+        if not args.silent:
+            # Print separator after merge request
+            print_separator()
+
+            # Print response token count
+            print_header("\nResponse Information")
+            print(f"Response tokens: {count_tokens(merge_request, 'gpt-4')}")
 
     except Exception as e:
         print(f"{RED}Error: {provider.title()} API - {e}{ENDC}", file=sys.stderr)
