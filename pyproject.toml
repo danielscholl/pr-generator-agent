@@ -1,15 +1,61 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "aimr"
 version = "0.1.0"
-description = "Generate merge request descriptions using AI models"
-readme = "README.md"
-requires-python = ">=3.8"
+description = "AI-powered Merge Request Description Generator"
+authors = [
+    {name = "Daniel Scholl", email = "daniel.scholl@microsoft.com"}
+]
 dependencies = [
-    "GitPython>=3.1.0",
-    "openai[azure]>=1.0.0",  # For both standard and Azure OpenAI support
-    "anthropic>=0.3.0",
-    "tiktoken>=0.5.0",  # For token counting
+    "gitpython>=3.1.0",
+    "openai>=1.0.0",
+    "anthropic>=0.7.0",
+    "tiktoken>=0.5.0"
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=24.0.0",
+    "isort>=5.12.0",
+    "flake8>=7.0.0",
+    "build>=1.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-watch>=4.2.0",
 ]
 
-[tool.uv]
-package = true
+[project.scripts]
+aimr = "aimr.main:main"
+
+[tool.setuptools]
+packages = ["aimr"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=aimr --cov-report=term-missing"
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203"]  # Ignore whitespace before ':' (conflicts with Black)
+per-file-ignores = [
+    "__init__.py:F401",  # Ignore unused imports in __init__.py files
+    "tests/*:F401,F841"  # Ignore unused imports and variables in tests
+]

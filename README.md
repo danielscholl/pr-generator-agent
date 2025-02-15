@@ -1,173 +1,138 @@
-# Agentic - Merge Request Generator
+# AIMR - AI-powered Merge Request Description Generator
 
-A command-line tool that uses AI models to automatically generate merge request descriptions from git diffs.
+AIMR automatically generates high-quality merge request descriptions by analyzing git diffs and optionally performing vulnerability scanning. It uses state-of-the-art AI models to create comprehensive, well-structured descriptions that save time and improve code review quality.
 
-## Features
+## Supported AI Models
 
-- Analyzes git diffs and generates structured merge request descriptions in Markdown format
-- Supports comparing against target branches (e.g., comparing your current branch with a specified target branch)
-- Works with any Git repository
+Choose from multiple AI providers for generating descriptions:
 
-## Prerequisites
+### Azure OpenAI (Default)
+- `azure/o1-mini` (default)
+- `azure/gpt-4o`
+- `azure/gpt-4o-mini`
+- `azure/gpt-4` (alias for gpt-4o)
 
-- Python 3.8+
-- Git installed and accessible from the command line
-- API key for one of: OpenAI, Azure OpenAI, or Anthropic (set as environment variables)
-- uv package manager ([Learn more about uv](https://github.com/astral-sh/uv))
+### OpenAI
+- `gpt-4`
+- `gpt-4-turbo`
+- `gpt-3.5-turbo`
+
+### Anthropic
+- `claude-3.5-sonnet` (latest)
+- `claude-3.5-haiku` (latest)
+- `claude-3-opus` (latest)
+- `claude-3-sonnet`
+- `claude-3-haiku`
+- `claude-3` (alias for claude-3-opus)
+
+## Key Features
+
+- **Smart Branch Detection**: Automatically detects whether to show working tree changes or compare branches
+- **Vulnerability Scanning**: Optional security analysis between branches using Trivy
+- **Multiple Project Support**: Works with Java, Node.js, Python, and other project types
+- **CI/CD Integration**: Works seamlessly with GitLab and GitHub CLI tools
 
 ## Installation
 
-1. Clone the repository:
+### Prerequisites
+- Python 3.10 or higher (we officially support Python 3.10 and 3.11)
+- Git
+- Trivy (optional, for vulnerability scanning)
+- One of the following API keys:
+  - Azure OpenAI API key (default)
+  - OpenAI API key
+  - Anthropic API key
 
+### Install from Repository
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/danielscholl/mr-generator-agent.git
 cd mr-generator-agent
+
+# Install using pipx (recommended)
+pipx install .
+
+# Or install using pip
+pip install .
 ```
 
-2. Set up your API key(s):
-
+### Install from GitHub (without cloning)
 ```bash
-# For OpenAI
-export OPENAI_API_KEY='your-openai-key'
+# Install using pipx (recommended)
+pipx install git+https://github.com/danielscholl/mr-generator-agent.git
 
-# For Azure OpenAI
-export AZURE_API_BASE='https://your-instance.services.ai.azure.com/'
-export AZURE_API_VERSION='2024-08-01-preview'
-export AZURE_API_KEY='your-azure-api-key'
+# Or install using pip
+pip install git+https://github.com/danielscholl/mr-generator-agent.git
+```
+
+Note: Once the package is published to PyPI, you'll be able to install it directly using:
+```bash
+pipx install aimr  # Not available yet
+```
+
+### API Configuration
+```bash
+# For Azure OpenAI (default)
+export AZURE_API_KEY="your-api-key"
+export AZURE_API_BASE="your-api-base"
+export AZURE_API_VERSION="2024-02-15-preview"  # Optional
+
+# For OpenAI
+export OPENAI_API_KEY="your-api-key"
 
 # For Anthropic
-export ANTHROPIC_API_KEY='your-anthropic-key'
+export ANTHROPIC_API_KEY="your-api-key"
 ```
-
-3. Set up the shell function (see "Creating a Shell Function" section below)
-
-The shell function will automatically create a virtual environment and install dependencies when you first run the command.
 
 ## Usage
 
-Display the full list of options by running:
+### Basic Commands
+```bash
+# Generate MR description (auto-detects changes)
+aimr
 
+# Compare with specific target branch
+aimr -t develop
+
+# Include vulnerability scanning
+aimr --vulns
+
+# Force showing only working tree changes
+aimr -t -
+```
+
+### Smart Detection
+The tool intelligently decides what to compare:
+1. If you have staged/unstaged changes, it shows those changes
+2. If your branch is clean, it compares against:
+   - The specified target branch (with `-t`)
+   - Or tries to find a default branch ('main', 'master', 'develop')
+
+### CI/CD Integration
+```bash
+# GitLab MR creation
+glab mr create -d "$(aimr -s)" -t "your title"  # Auto-detects target
+glab mr create -d "$(aimr -s -t master)" -t "your title"  # Specific target
+
+# GitHub PR creation
+gh pr create -b "$(aimr -s)" -t "your title"  # Auto-detects target
+gh pr create -b "$(aimr -s -t develop)" -t "your title"  # Specific target
+```
+
+For all available options:
 ```bash
 aimr --help
 ```
 
-```
-usage: main.py [-h] [--target TARGET] [--model MODEL] [--verbose] [path]
+## Contributing
 
-Generates a Merge Request Description from Git diffs using AI models.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Setting up your development environment
+- Our development workflow
+- Code style guidelines
+- Pull request process
+- Running tests
 
-positional arguments:
-  path                  The directory path of the Git repository (defaults to current directory).
+## License
 
-options:
-  -h, --help           show this help message and exit
-  --target, -t TARGET  The target branch to merge into (defaults to showing working tree changes).
-  --model, -m MODEL    AI model to use. Available options:
-                       OpenAI:
-                         - gpt-4
-                         - gpt-4-turbo
-                         - gpt-3.5-turbo
-                       Azure OpenAI:
-                         - azure/o1-mini
-                         - azure/gpt-4
-                       Anthropic:
-                         - claude-3-opus
-                         - claude-3-sonnet
-                         - claude-2
-                         - claude-3 (alias for claude-3-opus)
-                       Defaults to gpt-4
-  --verbose, -v        Enable verbose output
-
-examples:
-  # Generate MR description for current branch
-  aimr
-
-  # Compare with target branch using specific model
-  aimr -t main -m claude-3-opus
-
-  # Use Azure OpenAI
-  aimr -m azure/o1-mini
-```
-
-### Basic Usage
-
-Generate a merge request description:
-
-```bash
-uv run python main.py /path/to/repo
-```
-
-### Using a Target Branch
-
-To compare the current branch against a target branch (e.g., develop):
-
-```bash
-uv run python main.py /path/to/repo --target develop
-```
-
-### Specifying Models
-
-You can specify different AI models using either `--model` or `-m` flag:
-
-```bash
-# OpenAI Models
-aimr -m gpt-4
-aimr -m gpt-4-turbo
-aimr -m gpt-3.5-turbo
-
-# Azure OpenAI Models
-aimr -m azure/o1-mini
-aimr -m azure/gpt-4
-
-# Anthropic Models
-aimr -m claude-3-opus
-aimr -m claude-3-sonnet
-aimr -m claude-2
-```
-
-The tool will automatically:
-- Map common model aliases to their full versions (e.g., 'claude-3' → 'claude-3-opus-20240229')
-- Route requests to the appropriate API based on the model prefix (e.g., 'azure/' for Azure OpenAI)
-
-### Creating a Shell Function (Optional)
-
-To run the tool from any directory, you can create a shell function in your `~/.zshrc` or `~/.bashrc`:
-
-```bash
-function aimr() {
-    # Store the project directory path
-    MR_GENERATOR_DIR="$HOME/source/github/danielscholl/mr-generator-agent"
-
-    # Create virtual environment if it doesn't exist and install dependencies
-    if [ ! -d "$MR_GENERATOR_DIR/.venv" ]; then
-        cd "$MR_GENERATOR_DIR"
-        uv venv
-        uv sync
-    fi
-
-    # Run the script using the virtual environment
-    "$MR_GENERATOR_DIR/.venv/bin/python" "$MR_GENERATOR_DIR/main.py" "$PWD" "$@"
-}
-```
-
-After saving and reloading your shell configuration (`. ~/.zshrc` or `. ~/.bashrc`):
-
-```bash
-# Basic usage
-aimr
-
-# With model specification
-aimr -m claude-3-opus
-
-# With target branch
-aimr -t develop
-```
-
-## Example Output
-
-The tool will generate a structured merge request description that includes:
-- A concise summary of the changes
-- Key modifications and their purpose
-- Notable technical details
-
-The output is in markdown format, ready to be pasted into your Git platform's merge request description.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
