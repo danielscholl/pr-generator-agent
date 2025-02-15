@@ -1,39 +1,15 @@
 """
 Tests for the main AIMR functionality
 """
-import os
 import pytest
 from unittest.mock import patch, MagicMock, call
-import git
 from git import Repo
+from git.exc import InvalidGitRepositoryError
 from aimr.main import (
     main, detect_provider_and_model, run_trivy_scan,
     compare_vulnerabilities, generate_user_prompt,
-    YELLOW, ENDC  # Add color code imports
+    YELLOW, ENDC
 )
-
-@pytest.fixture
-def mock_repo():
-    """Create a mock git repository for testing"""
-    mock = MagicMock(spec=Repo)
-    mock.active_branch.name = "feature-branch"
-    mock.is_dirty.return_value = False
-    mock.heads = [
-        MagicMock(name="main"),
-        MagicMock(name="feature-branch")
-    ]
-    # Make branch names accessible via name attribute
-    for head in mock.heads:
-        head.name = head._mock_name
-    mock.git.diff.return_value = "test diff content"
-    return mock
-
-@pytest.fixture(autouse=True)
-def mock_env(monkeypatch):
-    """Mock environment variables"""
-    monkeypatch.setenv('AZURE_API_KEY', 'test-key')
-    monkeypatch.setenv('AZURE_API_BASE', 'test-base')
-    monkeypatch.setenv('AZURE_API_VERSION', '2024-02-15-preview')
 
 def test_version():
     """Test that version is properly set"""
@@ -277,7 +253,7 @@ def test_main_explicit_target(mock_repo_class, mock_generate, mock_repo, capsys)
 @patch('aimr.main.git.Repo')
 def test_main_invalid_repo(mock_repo_class, capsys):
     """Test main function with invalid repository"""
-    mock_repo_class.side_effect = git.exc.InvalidGitRepositoryError
+    mock_repo_class.side_effect = InvalidGitRepositoryError
     
     try:
         main([])
@@ -529,4 +505,110 @@ Low impact change to test functionality.
     # Check content details
     assert "feature-branch" in output
     assert "Added import os" in output
-    assert "Modified test_function" in output 
+    assert "Modified test_function" in output
+
+@patch('aimr.main.run_trivy_scan')
+@patch('aimr.main.generate_with_azure_openai')
+@patch('aimr.main.git.Repo')
+def test_main_working_tree_with_vulns(mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys):
+    """Test main function with working tree (-t "-") and vulnerability scanning"""
+    # Set up mock repository
+    mock_repo_class.return_value = mock_repo
+    mock_repo.active_branch.name = "feature-branch"
+    mock_repo.git.diff.return_value = "test diff content"
+    
+    # Mock vulnerability scan results for single branch scan
+    mock_trivy.return_value = {
+        "Results": [
+            {
+                "Target": "requirements.txt",
+                "Type": "pip",
+                "Vulnerabilities": [
+                    {
+                        "VulnerabilityID": "CVE-2024-0001",
+                        "PkgName": "requests",
+                        "InstalledVersion": "2.25.0",
+                        "Severity": "HIGH"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    mock_generate.return_value = "Test MR description with vulnerabilities"
+    
+    # Run main with both working tree and vulnerability scanning
+    try:
+        main(['--silent', '-t', '-', '--vulns'])
+    except SystemExit:
+        pass
+    
+    # Verify only one Trivy scan was performed (no temp repo clone)
+    mock_trivy.assert_called_once()
+    
+    # Verify git operations were for working tree
+    mock_repo.git.diff.assert_has_calls([
+        call('HEAD', '--cached'),
+        call()
+    ])
+    
+    # Verify output
+    captured = capsys.readouterr()
+    assert "Test MR description with vulnerabilities" in captured.out
+
+@patch('aimr.main.run_trivy_scan')
+@patch('aimr.main.generate_with_azure_openai')
+@patch('aimr.main.git.Repo')
+def test_main_single_branch_vuln_scan(mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys):
+    """Test main function with vulnerability scanning on a single branch (no target comparison)"""
+    # Set up mock repository with no target branch
+    mock_repo_class.return_value = mock_repo
+    mock_repo.active_branch.name = "feature-branch"
+    mock_repo.git.diff.return_value = "test diff content"
+    mock_repo.heads = [MagicMock(name="feature-branch")]  # Only current branch exists
+    for head in mock_repo.heads:
+        head.name = head._mock_name
+    
+    # Simulate working tree changes to ensure we take the working tree path
+    mock_repo.index.diff.return_value = ["some_change"]  # Simulate staged changes
+    mock_repo.untracked_files = ["untracked_file"]  # Simulate untracked files
+    
+    # Mock vulnerability scan results
+    mock_trivy.return_value = {
+        "Results": [
+            {
+                "Target": "requirements.txt",
+                "Type": "pip",
+                "Vulnerabilities": [
+                    {
+                        "VulnerabilityID": "CVE-2024-0001",
+                        "PkgName": "requests",
+                        "InstalledVersion": "2.25.0",
+                        "Severity": "HIGH"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    mock_generate.return_value = "Test MR description with single branch vulnerabilities"
+    
+    # Run main with vulnerability scanning but no valid target branch
+    try:
+        main(['--silent', '--vulns'])
+    except SystemExit:
+        pass
+    
+    # Verify only one Trivy scan was performed (no comparison scan)
+    mock_trivy.assert_called_once()
+    
+    # Verify git operations were for working tree changes (staged and unstaged)
+    mock_repo.git.diff.assert_has_calls([
+        call('HEAD', '--cached'),
+        call()
+    ])
+    assert mock_repo.git.diff.call_count == 2  # Called for both staged and unstaged changes
+    
+    # Verify output
+    captured = capsys.readouterr()
+    assert "Test MR description with single branch vulnerabilities" in captured.out 

@@ -36,7 +36,8 @@ def mock_repo():
     """Create a mock git repository for testing"""
     mock = MagicMock()
     mock.active_branch.name = "feature-branch"
-    mock.is_dirty.return_value = False
+    mock.index.diff.return_value = []  # No staged changes by default
+    mock.untracked_files = []  # No untracked files by default
     mock.heads = [
         MagicMock(name="main"),
         MagicMock(name="feature-branch")
