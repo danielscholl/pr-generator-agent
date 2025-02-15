@@ -550,8 +550,11 @@ Defaults to azure/o1-mini"""
         print_header("Repository Information")
         print(f"Repository: {os.path.abspath(args.path)}")
         print(f"Current branch: {current_branch}")
-        if args.target:
-            print(f"Target branch: {args.target}")
+        if target_branch:  # Show target branch whenever we have one, not just when explicitly specified
+            print(f"Target branch: {target_branch}")
+            print(f"Comparing: {current_branch} → {target_branch}")
+        elif has_changes:
+            print("Changes: Working tree changes")
 
         # Add token count information
         user_prompt = generate_user_prompt(diff)
