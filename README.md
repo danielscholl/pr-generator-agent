@@ -35,7 +35,7 @@ Choose from multiple AI providers for generating descriptions:
 ## Installation
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.10 or higher (we officially support Python 3.10 and 3.11)
 - Git
 - Trivy (optional, for vulnerability scanning)
 - One of the following API keys:
