@@ -1,30 +1,40 @@
 # AIMR - AI-powered Merge Request Description Generator
 
-AIMR is a command-line tool that generates high-quality merge request descriptions using AI models. It analyzes git diffs and optionally performs vulnerability scanning to create comprehensive, well-structured merge request descriptions.
+AIMR automatically generates high-quality merge request descriptions by analyzing git diffs and optionally performing vulnerability scanning. It uses state-of-the-art AI models to create comprehensive, well-structured descriptions that save time and improve code review quality.
 
-## Features
+## Supported AI Models
 
-- Generates merge request descriptions using various AI models (Azure OpenAI, OpenAI, Anthropic)
-- Supports vulnerability scanning and comparison between branches using Trivy
-- Integrates with GitLab and GitHub CLI tools
-- Supports multiple project types (Java, Node.js, Python)
+Choose from multiple AI providers for generating descriptions:
+
+### Azure OpenAI (Default)
+- `azure/o1-mini` (default)
+- `azure/gpt-4o`
+- `azure/gpt-4o-mini`
+- `azure/gpt-4` (alias for gpt-4o)
+
+### OpenAI
+- `gpt-4`
+- `gpt-4-turbo`
+- `gpt-3.5-turbo`
+
+### Anthropic
+- `claude-3.5-sonnet` (latest)
+- `claude-3.5-haiku` (latest)
+- `claude-3-opus` (latest)
+- `claude-3-sonnet`
+- `claude-3-haiku`
+- `claude-3` (alias for claude-3-opus)
+
+## Key Features
+
+- **Smart Branch Detection**: Automatically detects whether to show working tree changes or compare branches
+- **Vulnerability Scanning**: Optional security analysis between branches using Trivy
+- **Multiple Project Support**: Works with Java, Node.js, Python, and other project types
+- **CI/CD Integration**: Works seamlessly with GitLab and GitHub CLI tools
 
 ## Installation
 
-Install using pipx (recommended):
-
-```bash
-pipx install aimr
-```
-
-Or using pip:
-
-```bash
-pip install aimr
-```
-
-## Prerequisites
-
+### Prerequisites
 - Python 3.8 or higher
 - Git
 - Trivy (optional, for vulnerability scanning)
@@ -33,10 +43,34 @@ pip install aimr
   - OpenAI API key
   - Anthropic API key
 
-## Environment Variables
+### Install from Repository
+```bash
+# Clone the repository
+git clone https://github.com/danielscholl/mr-generator-agent.git
+cd mr-generator-agent
 
-Set up the required API keys:
+# Install using pipx (recommended)
+pipx install .
 
+# Or install using pip
+pip install .
+```
+
+### Install from GitHub (without cloning)
+```bash
+# Install using pipx (recommended)
+pipx install git+https://github.com/danielscholl/mr-generator-agent.git
+
+# Or install using pip
+pip install git+https://github.com/danielscholl/mr-generator-agent.git
+```
+
+Note: Once the package is published to PyPI, you'll be able to install it directly using:
+```bash
+pipx install aimr  # Not available yet
+```
+
+### API Configuration
 ```bash
 # For Azure OpenAI (default)
 export AZURE_API_KEY="your-api-key"
@@ -52,168 +86,53 @@ export ANTHROPIC_API_KEY="your-api-key"
 
 ## Usage
 
-Basic usage:
-
+### Basic Commands
 ```bash
-# Generate MR description for current branch
+# Generate MR description (auto-detects changes)
 aimr
 
-# Compare with target branch using specific model
-aimr -t main -m claude-3-sonnet
+# Compare with specific target branch
+aimr -t develop
 
-# Include vulnerability comparison
-aimr -t main --vulns
+# Include vulnerability scanning
+aimr --vulns
 
-# Create GitLab MR with description
-glab mr create -d "$(aimr -s -t master)" -t "your title"
-glab mr create -d "$(aimr -s -t master)" --fill  # Use commit info for title
-
-# Create GitHub PR with description
-gh pr create -b "$(aimr -s -t main)" -t "your title"
-gh pr create -b "$(aimr -s -t main)" --fill  # Use commit info for title
+# Force showing only working tree changes
+aimr -t -
 ```
 
-Available options:
+### Smart Detection
+The tool intelligently decides what to compare:
+1. If you have staged/unstaged changes, it shows those changes
+2. If your branch is clean, it compares against:
+   - The specified target branch (with `-t`)
+   - Or tries to find a default branch ('main', 'master', 'develop')
 
+### CI/CD Integration
+```bash
+# GitLab MR creation
+glab mr create -d "$(aimr -s)" -t "your title"  # Auto-detects target
+glab mr create -d "$(aimr -s -t master)" -t "your title"  # Specific target
+
+# GitHub PR creation
+gh pr create -b "$(aimr -s)" -t "your title"  # Auto-detects target
+gh pr create -b "$(aimr -s -t develop)" -t "your title"  # Specific target
+```
+
+For all available options:
 ```bash
 aimr --help
 ```
 
-## Available Models
+## Contributing
 
-### Azure OpenAI
-- azure/o1-mini (default)
-- azure/gpt-4o
-- azure/gpt-4o-mini
-- azure/gpt-4 (alias for gpt-4o)
-
-### OpenAI
-- gpt-4
-- gpt-4-turbo
-- gpt-3.5-turbo
-
-### Anthropic
-- claude-3.5-sonnet (latest)
-- claude-3.5-haiku (latest)
-- claude-3-opus (latest)
-- claude-3-sonnet
-- claude-3-haiku
-- claude-3 (alias for claude-3-opus)
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Setting up your development environment
+- Our development workflow
+- Code style guidelines
+- Pull request process
+- Running tests
 
 ## License
 
-MIT
-
-## Development
-
-If you want to develop or contribute to AIMR, we recommend using `uv` for a faster and more reliable development environment.
-
-### Setting up the Development Environment
-
-1. Install `uv` if you haven't already:
-```bash
-pip install uv
-```
-
-2. Clone the repository:
-```bash
-git clone https://github.com/danielscholl/mr-generator-agent.git
-cd mr-generator-agent
-```
-
-3. Create a virtual environment and install dependencies:
-```bash
-uv venv
-uv pip install -e ".[dev]"  # Install in editable mode with development dependencies
-```
-
-### Development Workflow
-
-1. Activate the virtual environment:
-```bash
-source .venv/bin/activate  # On Unix/macOS
-.venv\Scripts\activate     # On Windows
-```
-
-2. Make your changes to the code
-
-3. Run the development version:
-```bash
-python -m aimr.main  # Run directly from source
-# or
-pip install -e .     # Install in editable mode
-aimr                 # Run the installed development version
-```
-
-### Adding Dependencies
-
-To add new dependencies:
-
-1. Add them to `pyproject.toml` in the appropriate section:
-```toml
-[project]
-dependencies = [
-    # Runtime dependencies
-]
-
-[project.optional-dependencies]
-dev = [
-    # Development dependencies
-]
-```
-
-2. Update your development environment:
-```bash
-uv pip install -e ".[dev]"
-```
-
-### Running Tests
-
-```bash
-pytest tests/
-```
-
-### Building the Package
-
-To build the package for distribution:
-
-```bash
-uv pip install build
-python -m build
-```
-
-This will create both wheel and source distribution in the `dist/` directory.
-
-### Local Testing
-
-To test your changes locally before committing:
-
-1. Build the package:
-```bash
-python -m build
-```
-
-2. Install it with pipx in editable mode:
-```bash
-pipx install -e .
-```
-
-Or test it in a temporary environment:
-```bash
-pipx install --suffix=@dev -e .
-aimr@dev --help
-```
-
-### Code Style
-
-We use:
-- Black for code formatting
-- isort for import sorting
-- flake8 for linting
-
-Format your code before committing:
-```bash
-black aimr/
-isort aimr/
-flake8 aimr/
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

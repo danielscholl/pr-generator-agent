@@ -380,7 +380,8 @@ def compare_vulnerabilities(current_scan: Dict[str, Any], target_scan: Dict[str,
     
     return "\n".join(report), "\n".join(analysis_data)
 
-def main():
+def main(args=None):
+    """Main entry point for AIMR"""
     parser = argparse.ArgumentParser(
         prog="aimr",
         description="Generates a Merge Request Description from Git diffs using AI models.",
@@ -456,7 +457,7 @@ Defaults to azure/o1-mini"""
         action="store_true",
         help="Include vulnerability comparison between branches using trivy"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     # Detect provider and normalize model name
     provider, model = detect_provider_and_model(args.model)
@@ -472,15 +473,76 @@ Defaults to azure/o1-mini"""
     except TypeError:
         current_branch = repo.head.commit.hexsha
 
-    if args.target:
+    # Check if we have any working tree changes
+    has_changes = repo.is_dirty(untracked_files=True)
+    
+    # Determine if we should do branch comparison or working tree changes
+    if args.target == "-":
+        # Explicit request for working tree changes
+        if not args.silent:
+            print(f"{BLUE}Showing working tree changes as requested...{ENDC}", file=sys.stderr)
+        diff = repo.git.diff()
+        target_branch = None
+    elif args.target:
+        # Explicit target branch specified
         target_branch = args.target
         local_branches = [h.name for h in repo.heads]
+        
+        # Try common default branch names if the specified branch doesn't exist
         if target_branch not in local_branches:
-            print(f"Error: Target branch '{target_branch}' does not exist in the repository.", file=sys.stderr)
-            sys.exit(1)
+            # Prioritize 'main' as the first default branch
+            if "main" in local_branches:
+                if not args.silent:
+                    print(f"{YELLOW}Warning: Target branch '{target_branch}' not found, using 'main' instead.{ENDC}", file=sys.stderr)
+                target_branch = "main"
+            else:
+                # Fall back to other common branch names
+                default_branches = ["master", "develop"]
+                for branch in default_branches:
+                    if branch in local_branches:
+                        if not args.silent:
+                            print(f"{YELLOW}Warning: Target branch '{target_branch}' not found, using '{branch}' instead.{ENDC}", file=sys.stderr)
+                        target_branch = branch
+                        break
+                else:
+                    print(f"{RED}Error: Target branch '{target_branch}' does not exist in the repository.{ENDC}", file=sys.stderr)
+                    sys.exit(1)
+        
         diff = repo.git.diff(f"{target_branch}...{current_branch}")
     else:
-        diff = repo.git.diff()
+        # No target specified, auto-detect what to do
+        if has_changes:
+            # Show working tree changes if we have any
+            if not args.silent:
+                print(f"{BLUE}Detected working tree changes, showing diff of current changes...{ENDC}", file=sys.stderr)
+            diff = repo.git.diff()
+            target_branch = None
+        else:
+            # No working tree changes, try to compare against default branch
+            local_branches = [h.name for h in repo.heads]
+            
+            # First try 'main' as the default branch
+            if "main" in local_branches and current_branch != "main":
+                if not args.silent:
+                    print(f"{BLUE}No working tree changes, comparing against 'main'...{ENDC}", file=sys.stderr)
+                diff = repo.git.diff(f"main...{current_branch}")
+                target_branch = "main"
+            else:
+                # Fall back to other common branch names
+                default_branches = ["master", "develop"]
+                for branch in default_branches:
+                    if branch in local_branches and branch != current_branch:
+                        if not args.silent:
+                            print(f"{BLUE}No working tree changes, comparing against '{branch}'...{ENDC}", file=sys.stderr)
+                        diff = repo.git.diff(f"{branch}...{current_branch}")
+                        target_branch = branch
+                        break
+                else:
+                    # No suitable default branch found
+                    if not args.silent:
+                        print(f"{YELLOW}No default target branch found and no working tree changes.{ENDC}", file=sys.stderr)
+                    diff = ""
+                    target_branch = None
 
     if not diff.strip():
         print("No changes found in the Git repository.", file=sys.stderr)
