@@ -528,6 +528,27 @@ Defaults to azure/o1-mini"""
             # Include both staged and unstaged changes
             diff = repo.git.diff('HEAD', '--cached') + "\n" + repo.git.diff()
             target_branch = None
+        else:
+            # Case 3b: No working tree changes, try to compare with default branch
+            local_branches = [h.name for h in repo.heads]
+            
+            # Try to find a suitable default branch to compare against
+            if "main" in local_branches and current_branch != "main":
+                target_branch = "main"
+            else:
+                for branch in ["master", "develop"]:
+                    if branch in local_branches and branch != current_branch:
+                        target_branch = branch
+                        break
+            
+            if target_branch:
+                if not args.silent:
+                    print(f"{BLUE}No working tree changes, comparing against '{target_branch}'...{ENDC}", file=sys.stderr)
+                diff = repo.git.diff(f"{target_branch}...{current_branch}")
+            else:
+                if not args.silent:
+                    print(f"{YELLOW}No suitable default branch found to compare against.{ENDC}", file=sys.stderr)
+                diff = ""
 
     if not diff.strip():
         print("No changes found in the Git repository.", file=sys.stderr)
