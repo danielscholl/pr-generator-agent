@@ -38,6 +38,7 @@ check: format lint test
 clean:
 	@echo "Cleaning up build artifacts and virtual environment..."
 	rm -rf dist/ build/ *.egg-info .coverage htmlcov/ .pytest_cache/ $(VENV)
+	find . -name '__pycache__' -type d -exec rm -rf {} +
 	@echo "\nNext step:"
 	@echo "Run 'make install' to set up a fresh development environment"
 

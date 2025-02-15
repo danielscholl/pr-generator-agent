@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import anthropic
 import git
@@ -134,7 +134,7 @@ def generate_with_anthropic(prompt, system_prompt, model):
     return message.content[0].text
 
 
-def detect_provider_and_model(model_arg: str | None) -> Tuple[str, str]:
+def detect_provider_and_model(model_arg: Optional[str]) -> Tuple[str, str]:
     """
     Detect the provider and normalize the model name based on the input.
     Returns a tuple of (provider, model_name)
