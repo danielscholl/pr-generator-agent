@@ -1,173 +1,219 @@
-# Agentic - Merge Request Generator
+# AIMR - AI-powered Merge Request Description Generator
 
-A command-line tool that uses AI models to automatically generate merge request descriptions from git diffs.
+AIMR is a command-line tool that generates high-quality merge request descriptions using AI models. It analyzes git diffs and optionally performs vulnerability scanning to create comprehensive, well-structured merge request descriptions.
 
 ## Features
 
-- Analyzes git diffs and generates structured merge request descriptions in Markdown format
-- Supports comparing against target branches (e.g., comparing your current branch with a specified target branch)
-- Works with any Git repository
-
-## Prerequisites
-
-- Python 3.8+
-- Git installed and accessible from the command line
-- API key for one of: OpenAI, Azure OpenAI, or Anthropic (set as environment variables)
-- uv package manager ([Learn more about uv](https://github.com/astral-sh/uv))
+- Generates merge request descriptions using various AI models (Azure OpenAI, OpenAI, Anthropic)
+- Supports vulnerability scanning and comparison between branches using Trivy
+- Integrates with GitLab and GitHub CLI tools
+- Supports multiple project types (Java, Node.js, Python)
 
 ## Installation
 
-1. Clone the repository:
+Install using pipx (recommended):
 
 ```bash
-git clone <repository-url>
-cd mr-generator-agent
+pipx install aimr
 ```
 
-2. Set up your API key(s):
+Or using pip:
 
 ```bash
-# For OpenAI
-export OPENAI_API_KEY='your-openai-key'
+pip install aimr
+```
 
-# For Azure OpenAI
-export AZURE_API_BASE='https://your-instance.services.ai.azure.com/'
-export AZURE_API_VERSION='2024-08-01-preview'
-export AZURE_API_KEY='your-azure-api-key'
+## Prerequisites
+
+- Python 3.8 or higher
+- Git
+- Trivy (optional, for vulnerability scanning)
+- One of the following API keys:
+  - Azure OpenAI API key (default)
+  - OpenAI API key
+  - Anthropic API key
+
+## Environment Variables
+
+Set up the required API keys:
+
+```bash
+# For Azure OpenAI (default)
+export AZURE_API_KEY="your-api-key"
+export AZURE_API_BASE="your-api-base"
+export AZURE_API_VERSION="2024-02-15-preview"  # Optional
+
+# For OpenAI
+export OPENAI_API_KEY="your-api-key"
 
 # For Anthropic
-export ANTHROPIC_API_KEY='your-anthropic-key'
+export ANTHROPIC_API_KEY="your-api-key"
 ```
-
-3. Set up the shell function (see "Creating a Shell Function" section below)
-
-The shell function will automatically create a virtual environment and install dependencies when you first run the command.
 
 ## Usage
 
-Display the full list of options by running:
+Basic usage:
+
+```bash
+# Generate MR description for current branch
+aimr
+
+# Compare with target branch using specific model
+aimr -t main -m claude-3-sonnet
+
+# Include vulnerability comparison
+aimr -t main --vulns
+
+# Create GitLab MR with description
+glab mr create -d "$(aimr -s -t master)" -t "your title"
+glab mr create -d "$(aimr -s -t master)" --fill  # Use commit info for title
+
+# Create GitHub PR with description
+gh pr create -b "$(aimr -s -t main)" -t "your title"
+gh pr create -b "$(aimr -s -t main)" --fill  # Use commit info for title
+```
+
+Available options:
 
 ```bash
 aimr --help
 ```
 
-```
-usage: main.py [-h] [--target TARGET] [--model MODEL] [--verbose] [path]
+## Available Models
 
-Generates a Merge Request Description from Git diffs using AI models.
+### Azure OpenAI
+- azure/o1-mini (default)
+- azure/gpt-4o
+- azure/gpt-4o-mini
+- azure/gpt-4 (alias for gpt-4o)
 
-positional arguments:
-  path                  The directory path of the Git repository (defaults to current directory).
+### OpenAI
+- gpt-4
+- gpt-4-turbo
+- gpt-3.5-turbo
 
-options:
-  -h, --help           show this help message and exit
-  --target, -t TARGET  The target branch to merge into (defaults to showing working tree changes).
-  --model, -m MODEL    AI model to use. Available options:
-                       OpenAI:
-                         - gpt-4
-                         - gpt-4-turbo
-                         - gpt-3.5-turbo
-                       Azure OpenAI:
-                         - azure/o1-mini
-                         - azure/gpt-4
-                       Anthropic:
-                         - claude-3-opus
-                         - claude-3-sonnet
-                         - claude-2
-                         - claude-3 (alias for claude-3-opus)
-                       Defaults to gpt-4
-  --verbose, -v        Enable verbose output
+### Anthropic
+- claude-3.5-sonnet (latest)
+- claude-3.5-haiku (latest)
+- claude-3-opus (latest)
+- claude-3-sonnet
+- claude-3-haiku
+- claude-3 (alias for claude-3-opus)
 
-examples:
-  # Generate MR description for current branch
-  aimr
+## License
 
-  # Compare with target branch using specific model
-  aimr -t main -m claude-3-opus
+MIT
 
-  # Use Azure OpenAI
-  aimr -m azure/o1-mini
+## Development
+
+If you want to develop or contribute to AIMR, we recommend using `uv` for a faster and more reliable development environment.
+
+### Setting up the Development Environment
+
+1. Install `uv` if you haven't already:
+```bash
+pip install uv
 ```
 
-### Basic Usage
+2. Clone the repository:
+```bash
+git clone https://github.com/danielscholl/mr-generator-agent.git
+cd mr-generator-agent
+```
 
-Generate a merge request description:
+3. Create a virtual environment and install dependencies:
+```bash
+uv venv
+uv pip install -e ".[dev]"  # Install in editable mode with development dependencies
+```
+
+### Development Workflow
+
+1. Activate the virtual environment:
+```bash
+source .venv/bin/activate  # On Unix/macOS
+.venv\Scripts\activate     # On Windows
+```
+
+2. Make your changes to the code
+
+3. Run the development version:
+```bash
+python -m aimr.main  # Run directly from source
+# or
+pip install -e .     # Install in editable mode
+aimr                 # Run the installed development version
+```
+
+### Adding Dependencies
+
+To add new dependencies:
+
+1. Add them to `pyproject.toml` in the appropriate section:
+```toml
+[project]
+dependencies = [
+    # Runtime dependencies
+]
+
+[project.optional-dependencies]
+dev = [
+    # Development dependencies
+]
+```
+
+2. Update your development environment:
+```bash
+uv pip install -e ".[dev]"
+```
+
+### Running Tests
 
 ```bash
-uv run python main.py /path/to/repo
+pytest tests/
 ```
 
-### Using a Target Branch
+### Building the Package
 
-To compare the current branch against a target branch (e.g., develop):
+To build the package for distribution:
 
 ```bash
-uv run python main.py /path/to/repo --target develop
+uv pip install build
+python -m build
 ```
 
-### Specifying Models
+This will create both wheel and source distribution in the `dist/` directory.
 
-You can specify different AI models using either `--model` or `-m` flag:
+### Local Testing
 
+To test your changes locally before committing:
+
+1. Build the package:
 ```bash
-# OpenAI Models
-aimr -m gpt-4
-aimr -m gpt-4-turbo
-aimr -m gpt-3.5-turbo
-
-# Azure OpenAI Models
-aimr -m azure/o1-mini
-aimr -m azure/gpt-4
-
-# Anthropic Models
-aimr -m claude-3-opus
-aimr -m claude-3-sonnet
-aimr -m claude-2
+python -m build
 ```
 
-The tool will automatically:
-- Map common model aliases to their full versions (e.g., 'claude-3' → 'claude-3-opus-20240229')
-- Route requests to the appropriate API based on the model prefix (e.g., 'azure/' for Azure OpenAI)
-
-### Creating a Shell Function (Optional)
-
-To run the tool from any directory, you can create a shell function in your `~/.zshrc` or `~/.bashrc`:
-
+2. Install it with pipx in editable mode:
 ```bash
-function aimr() {
-    # Store the project directory path
-    MR_GENERATOR_DIR="$HOME/source/github/danielscholl/mr-generator-agent"
-
-    # Create virtual environment if it doesn't exist and install dependencies
-    if [ ! -d "$MR_GENERATOR_DIR/.venv" ]; then
-        cd "$MR_GENERATOR_DIR"
-        uv venv
-        uv sync
-    fi
-
-    # Run the script using the virtual environment
-    "$MR_GENERATOR_DIR/.venv/bin/python" "$MR_GENERATOR_DIR/main.py" "$PWD" "$@"
-}
+pipx install -e .
 ```
 
-After saving and reloading your shell configuration (`. ~/.zshrc` or `. ~/.bashrc`):
-
+Or test it in a temporary environment:
 ```bash
-# Basic usage
-aimr
-
-# With model specification
-aimr -m claude-3-opus
-
-# With target branch
-aimr -t develop
+pipx install --suffix=@dev -e .
+aimr@dev --help
 ```
 
-## Example Output
+### Code Style
 
-The tool will generate a structured merge request description that includes:
-- A concise summary of the changes
-- Key modifications and their purpose
-- Notable technical details
+We use:
+- Black for code formatting
+- isort for import sorting
+- flake8 for linting
 
-The output is in markdown format, ready to be pasted into your Git platform's merge request description.
+Format your code before committing:
+```bash
+black aimr/
+isort aimr/
+flake8 aimr/
+```
