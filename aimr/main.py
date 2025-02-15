@@ -474,14 +474,18 @@ Defaults to azure/o1-mini"""
         current_branch = repo.head.commit.hexsha
 
     # Check if we have any working tree changes
-    has_changes = repo.is_dirty(untracked_files=True)
+    has_staged_changes = repo.index.diff(repo.head.commit)
+    has_unstaged_changes = repo.index.diff(None)
+    has_untracked = repo.untracked_files
+    has_changes = bool(has_staged_changes or has_unstaged_changes or has_untracked)
     
     # Determine if we should do branch comparison or working tree changes
     if args.target == "-":
         # Case 1: Explicit request for working tree changes
         if not args.silent:
             print(f"{BLUE}Showing working tree changes as requested...{ENDC}", file=sys.stderr)
-        diff = repo.git.diff()
+        # Include both staged and unstaged changes
+        diff = repo.git.diff('HEAD', '--cached') + "\n" + repo.git.diff()
         target_branch = None
     elif args.target:
         # Case 2: Explicit target branch comparison
@@ -517,29 +521,13 @@ Defaults to azure/o1-mini"""
             # Case 3a: Show working tree changes if we have any
             if not args.silent:
                 print(f"{BLUE}Detected working tree changes, showing diff of current changes...{ENDC}", file=sys.stderr)
-            diff = repo.git.diff()
+                if has_staged_changes:
+                    print(f"{BLUE}Including staged changes{ENDC}", file=sys.stderr)
+                if has_unstaged_changes or has_untracked:
+                    print(f"{BLUE}Including unstaged changes{ENDC}", file=sys.stderr)
+            # Include both staged and unstaged changes
+            diff = repo.git.diff('HEAD', '--cached') + "\n" + repo.git.diff()
             target_branch = None
-        else:
-            # Case 3b: No working tree changes, compare with default branch
-            local_branches = [h.name for h in repo.heads]
-            
-            # Try to find a suitable default branch to compare against
-            if "main" in local_branches and current_branch != "main":
-                target_branch = "main"
-            else:
-                for branch in ["master", "develop"]:
-                    if branch in local_branches and branch != current_branch:
-                        target_branch = branch
-                        break
-            
-            if target_branch:
-                if not args.silent:
-                    print(f"{BLUE}Comparing current branch with {target_branch}...{ENDC}", file=sys.stderr)
-                diff = repo.git.diff(f"{target_branch}...{current_branch}")
-            else:
-                if not args.silent:
-                    print(f"{YELLOW}No suitable default branch found to compare against.{ENDC}", file=sys.stderr)
-                diff = ""
 
     if not diff.strip():
         print("No changes found in the Git repository.", file=sys.stderr)
