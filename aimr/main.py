@@ -210,13 +210,23 @@ def print_header(text, color=BLUE):
     """Print a header with the given color."""
     print(f"\n{color}{BOLD}{text}{ENDC}")
 
-def run_trivy_scan(path: str) -> Dict[str, Any]:
+def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Dict[str, Any]:
     """Run trivy filesystem scan and return the results as a dictionary."""
     try:
         # Determine project type and scanning approach
         is_java = os.path.exists(os.path.join(path, 'pom.xml'))
         is_node = os.path.exists(os.path.join(path, 'package.json'))
-        is_python = os.path.exists(os.path.join(path, 'requirements.txt')) or os.path.exists(os.path.join(path, 'setup.py'))
+        
+        # Enhanced Python project detection
+        python_files = [
+            'requirements.txt',
+            'setup.py',
+            'pyproject.toml',
+            'poetry.lock',
+            'Pipfile',
+            'Pipfile.lock'
+        ]
+        is_python = any(os.path.exists(os.path.join(path, f)) for f in python_files)
         
         trivy_args = [
             'trivy',
@@ -228,7 +238,8 @@ def run_trivy_scan(path: str) -> Dict[str, Any]:
         # Add dependency scanning for supported project types
         if is_java:
             try:
-                print(f"{BLUE}Detected Java project, resolving Maven dependencies...{ENDC}", file=sys.stderr)
+                if not silent:
+                    print(f"{BLUE}Detected Java project, resolving Maven dependencies...{ENDC}", file=sys.stderr)
                 subprocess.run(
                     ['mvn', 'dependency:resolve', '-DskipTests'],
                     cwd=path,
@@ -238,14 +249,58 @@ def run_trivy_scan(path: str) -> Dict[str, Any]:
                 trivy_args.append('--dependency-tree')
             except subprocess.CalledProcessError as e:
                 print(f"{YELLOW}Warning: Maven dependency resolution failed: {e}{ENDC}", file=sys.stderr)
-        elif is_node or is_python:
-            print(f"{BLUE}Detected {'Node.js' if is_node else 'Python'} project, including dependency scanning...{ENDC}", file=sys.stderr)
+        elif is_node:
+            if not silent:
+                print(f"{BLUE}Detected Node.js project, including dependency scanning...{ENDC}", file=sys.stderr)
+            trivy_args.append('--dependency-tree')
+        elif is_python:
+            if not silent:
+                print(f"{BLUE}Detected Python project, including enhanced scanning...{ENDC}", file=sys.stderr)
+            
+            # Check which package management files exist
+            pkg_files = []
+            has_poetry = os.path.exists(os.path.join(path, 'poetry.lock'))
+            has_pipenv = os.path.exists(os.path.join(path, 'Pipfile.lock'))
+            has_pip = os.path.exists(os.path.join(path, 'requirements.txt'))
+            has_setup = os.path.exists(os.path.join(path, 'setup.py'))
+            has_pyproject = os.path.exists(os.path.join(path, 'pyproject.toml'))
+            
+            if has_poetry:
+                pkg_files.append('poetry.lock')
+                if has_pyproject:
+                    pkg_files.append('pyproject.toml')
+                if not silent:
+                    print(f"{BLUE}Using Poetry for dependency scanning (transitive dependencies, excludes dev)...{ENDC}", file=sys.stderr)
+            elif has_pipenv:
+                pkg_files.append('Pipfile.lock')
+                if not silent:
+                    print(f"{BLUE}Using Pipenv for dependency scanning (transitive dependencies, includes dev)...{ENDC}", file=sys.stderr)
+            elif has_pip:
+                pkg_files.append('requirements.txt')
+                if not silent:
+                    print(f"{BLUE}Using pip requirements (direct dependencies only, includes dev)...{ENDC}", file=sys.stderr)
+            elif has_setup or has_pyproject:
+                if has_setup:
+                    pkg_files.append('setup.py')
+                if has_pyproject:
+                    pkg_files.append('pyproject.toml')
+                if not silent:
+                    print(f"{BLUE}Using Python package metadata files...{ENDC}", file=sys.stderr)
+            
+            if pkg_files and not silent:
+                print(f"{BLUE}Found package files: {', '.join(pkg_files)}{ENDC}", file=sys.stderr)
+            
+            # Add Python-specific scanning options
             trivy_args.append('--dependency-tree')
         else:
-            print(f"{BLUE}No specific package manager detected, performing filesystem scan...{ENDC}", file=sys.stderr)
+            if not silent:
+                print(f"{BLUE}No specific package manager detected, performing filesystem scan...{ENDC}", file=sys.stderr)
 
         # Add the path as the last argument
         trivy_args.append(path)
+
+        if not silent and verbose:
+            print(f"{BLUE}Running trivy with args: {' '.join(trivy_args)}{ENDC}", file=sys.stderr)
 
         # Run trivy scan
         result = subprocess.run(
@@ -596,64 +651,129 @@ Defaults to azure/o1-mini"""
                 model
             )
 
-        # Add vulnerability comparison if requested
-        if args.vulns and args.target:
+        # Add vulnerability scanning
+        if args.vulns:
             if not args.silent:
                 print("\nRunning vulnerability scans...")
             
-            # Create temporary directory for target branch scan
-            import tempfile
-            import shutil
+            if args.target and args.target != "-":
+                # Branch comparison vulnerability scan
+                import tempfile
+                import shutil
+                
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Copy current repository to temp directory
+                    shutil.copytree(args.path, os.path.join(temp_dir, 'repo'), dirs_exist_ok=True)
+                    
+                    # Initialize repo and checkout target branch
+                    temp_repo = git.Repo(os.path.join(temp_dir, 'repo'))
+                    temp_repo.git.checkout(args.target)
+                    
+                    # Run vulnerability scans with proper dependency resolution
+                    if not args.silent:
+                        print(f"\nScanning target branch ({args.target})...")
+                    target_scan = run_trivy_scan(os.path.join(temp_dir, 'repo'), args.silent, args.verbose)
+                    
+                    if not args.silent:
+                        print(f"\nScanning current branch ({current_branch})...")
+                    current_scan = run_trivy_scan(args.path, args.silent, args.verbose)
+                    
+                    # Generate vulnerability comparison and analysis
+                    vuln_report, vuln_analysis = compare_vulnerabilities(current_scan, target_scan)
+            else:
+                # Working tree vulnerability scan
+                if not args.silent:
+                    print(f"\nScanning current state...")
+                current_scan = run_trivy_scan(args.path, args.silent, args.verbose)
+                
+                # Generate vulnerability report for current state only
+                report = ["## Vulnerability Scan\n"]
+                analysis_data = ["### Security Analysis\n"]
+                
+                vulns = []
+                for result in current_scan.get('Results', []):
+                    target = result.get('Target', '')
+                    type = result.get('Type', '')
+                    for vuln in result.get('Vulnerabilities', []):
+                        vulns.append({
+                            'id': vuln.get('VulnerabilityID'),
+                            'pkg': vuln.get('PkgName'),
+                            'version': vuln.get('InstalledVersion'),
+                            'severity': vuln.get('Severity', 'UNKNOWN'),
+                            'description': vuln.get('Description'),
+                            'fix_version': vuln.get('FixedVersion'),
+                            'target': target,
+                            'type': type,
+                            'title': vuln.get('Title'),
+                            'references': vuln.get('References', [])
+                        })
+                
+                # Group by severity
+                severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'UNKNOWN': 4}
+                vulns_by_severity = {}
+                for vuln in vulns:
+                    sev = vuln['severity']
+                    if sev not in vulns_by_severity:
+                        vulns_by_severity[sev] = []
+                    vulns_by_severity[sev].append(vuln)
+                
+                # Generate report
+                if vulns:
+                    for severity in sorted(vulns_by_severity.keys(), key=lambda x: severity_order.get(x, 999)):
+                        report.append(f"\n### {severity} Severity\n")
+                        for vuln in sorted(vulns_by_severity[severity], key=lambda x: x['id']):
+                            report.append(f"- {vuln['id']} in {vuln['pkg']} {vuln['version']} ({vuln['target']})")
+                        
+                        # Add detailed analysis
+                        analysis_data.append(f"\n{severity} Severity Details:")
+                        for vuln in sorted(vulns_by_severity[severity], key=lambda x: x['id']):
+                            analysis_data.append(f"\n- {vuln['id']} ({vuln['type']}):")
+                            analysis_data.append(f"  - Package: {vuln['pkg']} {vuln['version']}")
+                            analysis_data.append(f"  - In: {vuln['target']}")
+                            analysis_data.append(f"  - Title: {vuln['title']}")
+                            analysis_data.append(f"  - Description: {vuln['description']}")
+                            if vuln['fix_version']:
+                                analysis_data.append(f"  - Fix available in version: {vuln['fix_version']}")
+                            if vuln['references']:
+                                analysis_data.append("  - References:")
+                                for ref in vuln['references'][:3]:  # Limit to first 3 references
+                                    analysis_data.append(f"    * {ref}")
+                else:
+                    report.append("\nNo vulnerabilities detected.")
+                    analysis_data.append("\nNo security issues to analyze.")
+                
+                vuln_report = "\n".join(report)
+                vuln_analysis = "\n".join(analysis_data)
             
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Copy current repository to temp directory
-                shutil.copytree(args.path, os.path.join(temp_dir, 'repo'), dirs_exist_ok=True)
-                
-                # Initialize repo and checkout target branch
-                temp_repo = git.Repo(os.path.join(temp_dir, 'repo'))
-                temp_repo.git.checkout(args.target)
-                
-                # Run vulnerability scans with proper dependency resolution
-                if not args.silent:
-                    print(f"\nScanning target branch ({args.target})...")
-                target_scan = run_trivy_scan(os.path.join(temp_dir, 'repo'))
-                
-                if not args.silent:
-                    print(f"\nScanning current branch ({current_branch})...")
-                current_scan = run_trivy_scan(args.path)
-                
-                # Generate vulnerability comparison and analysis
-                vuln_report, vuln_analysis = compare_vulnerabilities(current_scan, target_scan)
-                
-                # Update the user prompt with vulnerability analysis
-                user_prompt = generate_user_prompt(diff, vuln_analysis)
-                
-                if not args.silent:
-                    print("\nGenerating merge request with vulnerability analysis...")
-                
-                # Generate new merge request with vulnerability context
-                if provider == "openai":
-                    merge_request = generate_with_openai(
-                        user_prompt,
-                        SYSTEM_PROMPT,
-                        model
-                    )
-                elif provider == "azure":
-                    merge_request = generate_with_azure_openai(
-                        user_prompt,
-                        SYSTEM_PROMPT,
-                        model,
-                        args.verbose and not args.silent
-                    )
-                else:  # anthropic
-                    merge_request = generate_with_anthropic(
-                        user_prompt,
-                        SYSTEM_PROMPT,
-                        model
-                    )
-                
-                # Append the vulnerability report
-                merge_request = f"{merge_request}\n\n{vuln_report}"
+            # Update the user prompt with vulnerability analysis
+            user_prompt = generate_user_prompt(diff, vuln_analysis)
+            
+            if not args.silent:
+                print("\nGenerating merge request with vulnerability analysis...")
+            
+            # Generate new merge request with vulnerability context
+            if provider == "openai":
+                merge_request = generate_with_openai(
+                    user_prompt,
+                    SYSTEM_PROMPT,
+                    model
+                )
+            elif provider == "azure":
+                merge_request = generate_with_azure_openai(
+                    user_prompt,
+                    SYSTEM_PROMPT,
+                    model,
+                    args.verbose and not args.silent
+                )
+            else:  # anthropic
+                merge_request = generate_with_anthropic(
+                    user_prompt,
+                    SYSTEM_PROMPT,
+                    model
+                )
+            
+            # Append the vulnerability report
+            merge_request = f"{merge_request}\n\n{vuln_report}"
 
         if not args.silent:
             # Print separator before merge request

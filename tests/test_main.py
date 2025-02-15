@@ -3,7 +3,7 @@ Tests for the main AIMR functionality
 """
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 import git
 from git import Repo
 from aimr.main import main
@@ -63,8 +63,7 @@ def test_main_clean_branch(mock_repo_class, mock_generate, mock_repo, capsys):
 def test_main_with_changes(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with working tree changes (auto-detection)"""
     # Set up mock repository with working tree changes
-    dirty_mock = MagicMock(return_value=True)
-    mock_repo.is_dirty = dirty_mock
+    mock_repo.index.diff.return_value = ["some_change"]  # Simulate staged changes
     mock_repo.active_branch.name = "feature-branch"
     mock_repo.git.diff.return_value = "test diff content"
     mock_repo_class.return_value = mock_repo
@@ -77,8 +76,11 @@ def test_main_with_changes(mock_repo_class, mock_generate, mock_repo, capsys):
         pass
 
     # Verify the auto-detection flow
-    dirty_mock.assert_called_once_with(untracked_files=True)
-    mock_repo.git.diff.assert_called_once_with()
+    assert mock_repo.index.diff.call_count == 2  # Called for both staged and unstaged
+    mock_repo.git.diff.assert_has_calls([
+        call('HEAD', '--cached'),
+        call()
+    ])
     mock_generate.assert_called_once()
     
     # Verify output
@@ -101,8 +103,11 @@ def test_main_explicit_working_tree(mock_repo_class, mock_generate, mock_repo, c
     except SystemExit:
         pass
 
-    # Verify explicit working tree path
-    mock_repo.git.diff.assert_called_once_with()
+    # Verify explicit working tree path includes both staged and unstaged changes
+    mock_repo.git.diff.assert_has_calls([
+        call('HEAD', '--cached'),
+        call()
+    ])
     mock_generate.assert_called_once()
     
     # Verify output
@@ -169,4 +174,59 @@ def test_help(capsys):
     # Verify help content
     captured = capsys.readouterr()
     assert "usage:" in captured.out
-    assert "Generate MR description" in captured.out 
+    assert "Generate MR description" in captured.out
+
+@patch('aimr.main.run_trivy_scan')
+@patch('aimr.main.generate_with_azure_openai')
+@patch('aimr.main.git.Repo')
+def test_main_with_vulns(mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys):
+    """Test main function with vulnerability scanning"""
+    # Set up mock repository
+    mock_repo.active_branch.name = "feature-branch"
+    mock_repo.git.diff.return_value = "test diff content"
+    mock_repo_class.return_value = mock_repo
+    
+    # Mock vulnerability scan results
+    mock_trivy.return_value = {
+        "Results": [
+            {
+                "Target": "requirements.txt",
+                "Type": "pip",
+                "Vulnerabilities": [
+                    {
+                        "VulnerabilityID": "CVE-2024-0001",
+                        "PkgName": "requests",
+                        "InstalledVersion": "2.25.0",
+                        "FixedVersion": "2.31.0",
+                        "Severity": "HIGH",
+                        "Description": "Test vulnerability",
+                        "Title": "Test Title",
+                        "References": ["https://example.com/cve"]
+                    }
+                ]
+            }
+        ]
+    }
+    
+    # Mock AI response
+    mock_generate.return_value = "Test MR description"
+    
+    # Run main with vulnerability scanning
+    try:
+        main(['--silent', '--vulns'])
+    except SystemExit:
+        pass
+    
+    # Verify vulnerability scanning was performed
+    mock_trivy.assert_called_once()
+    
+    # Verify AI model was called with vulnerability data
+    assert mock_generate.call_count == 2  # Called once for initial MR, once with vuln data
+    
+    # Verify output includes both MR description and vulnerability report
+    captured = capsys.readouterr()
+    output = captured.out
+    assert "Test MR description" in output
+    assert "## Vulnerability Scan" in output
+    assert "HIGH Severity" in output
+    assert "CVE-2024-0001" in output 
