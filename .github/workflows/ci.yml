@@ -1,10 +1,10 @@
-name: Tests
+name: CI
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
+    branches-ignore:
+      - main  # Exclude main as it's handled by release workflow
+  pull_request:
     branches:
       - main
 
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.13']
 
     steps:
     - uses: actions/checkout@v4
@@ -30,9 +30,9 @@ jobs:
     
     - name: Run linters
       run: |
-        black --check aimr/
-        isort --check aimr/
-        flake8 aimr/
+        black --check aimr/ tests/
+        isort --check aimr/ tests/
+        flake8 aimr/ tests/
     
     - name: Run tests
       run: |
@@ -42,4 +42,5 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true 

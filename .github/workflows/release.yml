@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (without v prefix)'
+        required: true
+        type: string
+      publish_to_pypi:
+        description: 'Publish to PyPI'
+        required: true
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as pre-release'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # Needed for creating releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for changelog generation
+    
+    - name: Validate version format
+      run: |
+        if ! [[ ${{ inputs.version }} =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+          echo "Invalid version format. Must be x.y.z or x.y.z-suffix"
+          exit 1
+        fi
+    
+    - name: Update version
+      run: |
+        echo "__version__ = \"${{ inputs.version }}\"" > aimr/__init__.py
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add aimr/__init__.py
+        git commit -m "Bump version to ${{ inputs.version }}"
+        git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine check-wheel-contents
+    
+    - name: Run tests
+      run: |
+        pip install -e ".[dev]"
+        pytest
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Verify package contents
+      run: |
+        check-wheel-contents dist/*.whl
+        twine check dist/*
+
+    - name: Generate Release Notes
+      run: |
+        # Generate release notes
+        echo "# AIMR v${{ inputs.version }}" > release_notes.md
+        echo "" >> release_notes.md
+        echo "## What's Changed" >> release_notes.md
+        echo "" >> release_notes.md
+        # Get commits since last release
+        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s" >> release_notes.md
+        
+        # Add installation instructions
+        echo "" >> release_notes.md
+        echo "## Installation" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "\`\`\`bash" >> release_notes.md
+        echo "# Install using pipx (recommended)" >> release_notes.md
+        echo "pipx install aimr" >> release_notes.md
+        echo "" >> release_notes.md
+        echo "# Or install using pip" >> release_notes.md
+        echo "pip install aimr" >> release_notes.md
+        echo "\`\`\`" >> release_notes.md
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        body_path: release_notes.md
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        tag_name: v${{ inputs.version }}
+        draft: false
+        prerelease: ${{ inputs.prerelease }}
+    
+    - name: Check PyPI token
+      if: inputs.publish_to_pypi
+      run: |
+        if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
+          echo "Error: PYPI_API_TOKEN secret is not set"
+          exit 1
+        fi
+    
+    - name: Publish to PyPI
+      if: inputs.publish_to_pypi
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload dist/*
+    
+    - name: Push changes
+      run: |
+        git push origin main
+        git push origin "v${{ inputs.version }}" 
