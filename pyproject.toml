@@ -15,7 +15,7 @@ dependencies = [
     "anthropic>=0.7.0",
     "tiktoken>=0.5.0"
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.8.1"
 readme = "README.md"
 license = {text = "MIT"}
 
@@ -27,6 +27,7 @@ dev = [
     "flake8>=7.0.0",
     "build>=1.0.0",
     "pytest-cov>=4.1.0",
+    "pytest-watch>=4.2.0",
 ]
 
 [project.scripts]
@@ -50,3 +51,11 @@ include_trailing_comma = true
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "--cov=aimr --cov-report=term-missing"
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203"]  # Ignore whitespace before ':' (conflicts with Black)
+per-file-ignores = [
+    "__init__.py:F401",  # Ignore unused imports in __init__.py files
+    "tests/*:F401,F841"  # Ignore unused imports and variables in tests
+]

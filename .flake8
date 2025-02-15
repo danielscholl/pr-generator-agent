@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 100
+# Ignore whitespace before ':' (conflicts with Black)
+extend-ignore = E203
+
+# Ignore specific errors in specific files
+per-file-ignores = 
+    __init__.py: F401
+    tests/*: F401,F841 

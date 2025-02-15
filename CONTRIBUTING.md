@@ -2,84 +2,66 @@
 
 Thank you for your interest in contributing to AIMR! This document provides guidelines and instructions for contributing.
 
-## Development Setup
+## Development Guide
 
-1. Install `uv` package manager:
-```bash
-pip install uv
-```
+1. **Prerequisites**
+   - Python 3.8 or higher
+   - Git
+   - GitHub account
+   - GitHub CLI (`gh`) - https://cli.github.com
 
-2. Clone and prepare the repository:
+2. **Initial Setup**
 ```bash
-git clone https://github.com/danielscholl/mr-generator-agent.git
+# Verify GitHub CLI is installed and authenticated
+gh auth status
+
+# Fork the repository and clone it
+gh repo fork danielscholl/mr-generator-agent --clone=true
 cd mr-generator-agent
-uv venv
-uv pip install -e ".[dev]"  # Install in editable mode with development dependencies
+
+# The gh fork command automatically sets up the upstream remote
+# You can verify with: git remote -v
+
+# Create virtual environment and install dependencies
+make install
+
+# Activate the virtual environment
+source .venv/bin/activate 
 ```
 
-## Development Workflow
-
-1. Create a new branch for your feature or bugfix:
+3. **Making Changes**
 ```bash
+# Ensure your fork is up to date
+git fetch upstream
+git checkout main
+git merge upstream/main
+
+# Create a new branch
 git checkout -b feature-name
-```
 
-2. Make your changes following our code style guidelines.
+# Make your changes...
 
-3. Run tests and linters:
-```bash
-# Run all tests
-pytest
+# Verify your changes
+make check
 
-# Run linters
-black aimr/
-isort aimr/
-flake8 aimr/
-```
-
-4. Commit your changes:
-```bash
+# Commit and push your changes
 git add .
-git commit -m "Description of changes"
+git commit -m "Description of your changes"
+git push -u origin feature-name
+
+# Create a pull request
+make pr                         # Uses commit messages for title and description
+make pr title="Add new feature" # Uses a specific title
 ```
 
-5. Push your branch and create a pull request.
-
-## Code Style Guidelines
-
-- We use `black` for code formatting with a line length of 100
-- Imports are sorted using `isort`
-- Code should pass `flake8` checks
-- Write meaningful commit messages
-- Include tests for new features
-- Update documentation as needed
-
-## Pull Request Process
-
-1. Ensure your code passes all tests and linting checks
-2. Update the README.md if needed
-3. Update the version number in `aimr/__init__.py` if applicable
-4. The PR will be reviewed by maintainers
-5. Once approved, it will be merged into the main branch
-
-## Running Tests
-
+4. **Cleanup**
 ```bash
-# Run all tests
-pytest
+# Exit development environment
+deactivate
 
-# Run tests with coverage
-pytest --cov=aimr
-
-# Run specific test file
-pytest tests/test_specific.py
+# Remove virtual environment and build artifacts (optional)
+make clean
 ```
-
-## Questions or Problems?
-
-- Open an issue for bugs
-- Start a discussion for feature requests or questions
-- Tag issues appropriately
 
 ## License
 
