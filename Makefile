@@ -71,7 +71,7 @@ pr:
 		exit 1; \
 	fi
 	@BRANCH=$$(git branch --show-current); \
-	if gh pr view $$BRANCH --json state,number --jq 'select(.state == "OPEN")' >/dev/null 2>&1; then \
+	if gh pr list --head $$BRANCH --state open --json number --jq 'length > 0' >/dev/null 2>&1; then \
 		echo "Updating existing pull request for branch $$BRANCH..."; \
 		. $(VENV)/bin/activate && aipr -s --vulns -m azure/o1-mini -p meta | gh pr edit $$BRANCH --body-file -; \
 		echo "\nPull request updated!"; \
