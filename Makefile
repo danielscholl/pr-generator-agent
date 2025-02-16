@@ -52,6 +52,14 @@ pr:
 		echo "Error: title parameter is required. Usage: make pr title=\"Your PR title\""; \
 		exit 1; \
 	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: You have uncommitted changes. Please commit or stash them first."; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git log @{u}..)" ]; then \
+		echo "Error: You have unpushed commits. Please push them first: git push"; \
+		exit 1; \
+	fi
 	. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"
 	@echo "\nPull request created!"
 	@echo "Next step: Wait for review and address any feedback" 
