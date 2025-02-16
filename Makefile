@@ -56,10 +56,15 @@ pr:
 		echo "Error: You have uncommitted changes. Please commit or stash them first."; \
 		exit 1; \
 	fi
-	@if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then \
-		echo "Error: Current branch has no upstream branch configured."; \
-		echo "Please push the branch with: git push --set-upstream origin $$(git branch --show-current)"; \
-		exit 1; \
+	@BRANCH=$$(git branch --show-current); \
+	if ! git show-ref --verify --quiet refs/remotes/origin/$$BRANCH; then \
+		if git ls-remote --exit-code --heads origin $$BRANCH >/dev/null 2>&1; then \
+			git branch --set-upstream-to=origin/$$BRANCH $$BRANCH 2>/dev/null || true; \
+		else \
+			echo "Error: Branch '$$BRANCH' does not exist on remote 'origin'."; \
+			echo "Please push the branch with: git push --set-upstream origin $$BRANCH"; \
+			exit 1; \
+		fi; \
 	fi
 	@if [ -n "$$(git log @{u}.. 2>/dev/null)" ]; then \
 		echo "Error: You have unpushed commits. Please push them first: git push"; \
