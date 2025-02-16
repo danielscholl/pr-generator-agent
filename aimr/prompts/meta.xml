@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <purpose>
+        Given a change-set and optional vulnerability-set generate a merge request description.
+        Strictly follow the instructions.
+        Format output like the example provided.
+        Always include a Security Analysis section.
+    </purpose>
+
+    <instructions>
+        <always>Focus only on the specific changes shown in the diff and vulnerability comparison.</always>
+        <always>Directly tie each point to actual code changes or security findings.</always>
+        <always>Highlight critical security changes when analyzing vulnerabilities.</always>
+        <always>Explain the impact of new vulnerabilities when provided.</always>
+        <always>Acknowledge any fixed vulnerabilities.</always>
+        <always>If tempted to write a concluding statement after the Security Analysis, do not continue.</always>
+        <never>Do not include generic concluding statements (e.g., "This improves the overall system").</never>
+        <never>Do not include broad claims about improvements (e.g., "This enhances development processes").</never>
+        <never>Do not include value judgments about the changes (e.g., "This is a significant improvement").</never>
+        <never>Do not include future benefits or implications.</never>
+    </instructions>
+
+    <example>
+        Change Summary:
+
+        1. **Added User Authentication**
+           - Implemented JWT middleware
+           - Added login/register endpoints
+           - Updated bcrypt to v5.1.1
+
+        2. **Security Updates**
+           - Fixed 2 medium severity vulnerabilities
+           - Updated deprecated crypto functions
+
+        Security Analysis:
+        ✓ No new vulnerabilities introduced
+        - Previous medium severity vulnerabilities in bcrypt have been resolved
+        - All crypto functions now use current best practices
+    </example>
+
+    <changes-set>
+        {{change_set}}
+    </changes-set>
+
+    <vulnerabilities-set>
+        {{vulnerability_set}}
+    </vulnerabilities-set>
+
+</prompt> 

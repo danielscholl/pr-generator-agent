@@ -44,9 +44,7 @@ aimr -t main --vulns
 
 Example Output:
 ```
-AIMR - AI-powered Merge Request Description Generator
-
-Changes:
+Change Summary:
 
 1. **Added User Authentication**
    - Implemented JWT middleware
