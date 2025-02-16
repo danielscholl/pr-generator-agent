@@ -56,7 +56,12 @@ pr:
 		echo "Error: You have uncommitted changes. Please commit or stash them first."; \
 		exit 1; \
 	fi
-	@if [ -n "$$(git log @{u}..)" ]; then \
+	@if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then \
+		echo "Error: Current branch has no upstream branch configured."; \
+		echo "Please push the branch with: git push --set-upstream origin $$(git branch --show-current)"; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git log @{u}.. 2>/dev/null)" ]; then \
 		echo "Error: You have unpushed commits. Please push them first: git push"; \
 		exit 1; \
 	fi
