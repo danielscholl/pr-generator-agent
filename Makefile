@@ -45,6 +45,7 @@ clean:
 build: clean
 	. $(VENV)/bin/activate && python -m build
 
+<<<<<<< HEAD
 # GitHub PR target
 # Usage: make pr title="Your PR title"
 pr:
@@ -72,4 +73,11 @@ pr:
 	fi
 	. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"
 	@echo "\nPull request created!"
+=======
+# GitHub PR / GitLab MR target
+# Usage: make mr
+mr:
+	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create --fill --body-file - -t "$(shell git branch --show-current)"
+	@echo "\nMerge request created!"
+>>>>>>> main
 	@echo "Next step: Wait for review and address any feedback" 
