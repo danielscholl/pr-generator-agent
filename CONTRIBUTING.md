@@ -22,7 +22,7 @@ We welcome pull requests from everyone! Whether it's a bug fix, new feature, or 
 make install  # Sets up the virtualenv and installs dependencies
 make check    # Runs linting, formatting, tests
 make test     # Just run the test suite
-make pr       # Creates a pull request via gh
+make mr       # Creates a merge request via gh/glab
 make clean    # Removes build artifacts & venv
 ```
 

@@ -61,12 +61,15 @@ Security Analysis:
 ✓ No new vulnerabilities introduced
 ```
 
-# Create pull requests directly
+# Create merge requests directly
 ```bash
-# GitHub PR creation
+# GitHub
+make mr
+
+# Or manually with GitHub CLI
 gh pr create -b "$(aimr -s)" -t "feat: Add authentication"
 
-# GitLab MR creation
+# Or with GitLab CLI
 glab mr create -d "$(aimr -s)" -t "feat: Add authentication"
 ```
 
