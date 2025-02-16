@@ -36,16 +36,6 @@ jobs:
           exit 1
         fi
     
-    - name: Update version
-      run: |
-        mkdir -p aipr
-        echo "__version__ = \"${{ inputs.version }}\"" > aipr/__init__.py
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add aipr/__init__.py
-        git commit -m "Bump version to ${{ inputs.version }}"
-        git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
-    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -70,6 +60,25 @@ jobs:
       run: |
         pytest
     
+    - name: Update version
+      run: |
+        # Determine package directory from pyproject.toml
+        PACKAGE_DIR=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['name'])")
+        
+        # Create package directory if it doesn't exist
+        mkdir -p "${PACKAGE_DIR}"
+        echo "__version__ = \"${{ inputs.version }}\"" > "${PACKAGE_DIR}/__init__.py"
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${PACKAGE_DIR}/__init__.py"
+        git commit -m "Bump version to ${{ inputs.version }}"
+        git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+        
+        # Push both the commit and tag
+        git push origin HEAD:main
+        git push origin "v${{ inputs.version }}"
+
     - name: Build package
       run: python -m build
     
@@ -80,13 +89,17 @@ jobs:
 
     - name: Generate Release Notes
       run: |
+        # Get the previous tag, fallback to first commit if no tags exist
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+        
         # Generate release notes
         echo "# AIPR v${{ inputs.version }}" > release_notes.md
         echo "" >> release_notes.md
         echo "## What's Changed" >> release_notes.md
         echo "" >> release_notes.md
-        # Get commits since last release
-        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s" >> release_notes.md
+        
+        # Get commits since last release or first commit
+        git log ${PREV_TAG}..HEAD --pretty=format:"* %s" >> release_notes.md
         
         # Add installation instructions
         echo "" >> release_notes.md
@@ -129,8 +142,4 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        twine upload dist/*
-    
-    - name: Push tag
-      run: |
-        git push origin "v${{ inputs.version }}" 
+        twine upload dist/* 
