@@ -71,7 +71,8 @@ pr:
 		exit 1; \
 	fi
 	@BRANCH=$$(git branch --show-current); \
-	if gh pr view $$BRANCH --json number >/dev/null 2>&1; then \
+	PR_COUNT=$$(gh pr list --head $$BRANCH --state open --json number --jq 'length'); \
+	if [ "$$PR_COUNT" -gt 0 ]; then \
 		echo "Updating existing pull request for branch $$BRANCH..."; \
 		. $(VENV)/bin/activate && aipr -s --vulns -m azure/o1-mini -p meta | gh pr edit $$BRANCH --body-file -; \
 		echo "\nPull request updated!"; \
@@ -81,4 +82,4 @@ pr:
 		. $(VENV)/bin/activate && aipr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"; \
 		echo "\nPull request created!"; \
 		echo "Next step: Wait for review and address any feedback"; \
-	fi 
+	fi
