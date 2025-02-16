@@ -31,7 +31,36 @@ make clean    # Removes build artifacts & venv
 - All code must pass `make check` before being merged
 - GitHub Actions will automatically verify these checks on your PR
 
-4. **Initial Setup**
+4. **Commit Conventions**
+We use [Conventional Commits](https://www.conventionalcommits.org/) to automate versioning and changelog generation. Your commit messages should follow this format:
+```
+type(optional-scope): description
+
+[optional body]
+[optional footer(s)]
+```
+
+Types that affect versioning:
+- `feat:` - New feature (bumps minor version)
+- `fix:` - Bug fix (bumps patch version)
+- `feat!:` or `fix!:` - Breaking change (bumps major version)
+
+Other types (don't affect version):
+- `docs:` - Documentation changes
+- `style:` - Code style changes
+- `refactor:` - Code changes that neither fix a bug nor add a feature
+- `test:` - Adding/updating tests
+- `chore:` - Maintenance tasks
+
+Examples:
+```bash
+git commit -m "feat: add support for OpenAI models"
+git commit -m "fix: handle empty commit messages"
+git commit -m "feat!: switch to new API version"
+git commit -m "docs: update installation instructions"
+```
+
+5. **Initial Setup**
 ```bash
 # Verify GitHub CLI is installed and authenticated
 gh auth status
@@ -50,7 +79,7 @@ make install
 source .venv/bin/activate 
 ```
 
-5. **Making Changes**
+6. **Making Changes**
 ```bash
 # Ensure your fork is up to date
 git fetch upstream
@@ -67,13 +96,39 @@ make check
 
 # Commit and push your changes
 git add .
-git commit -m "Description of your changes"
+git commit -m "feat: description of your changes"  # Use conventional commits!
 git push -u origin feature-name
 
 # Create a pull request
 make pr                         # Uses commit messages for title and description
 make pr title="Add new feature" # Uses a specific title
 ```
+
+## Release Process
+
+Releases are automated using Release Please. Here's how it works:
+
+1. **Versioning**
+   - Commits to `main` automatically trigger version updates based on conventional commits
+   - `fix:` commits bump the patch version (0.1.0 → 0.1.1)
+   - `feat:` commits bump the minor version (0.1.0 → 0.2.0)
+   - `feat!:` or any commit with `!` bump the major version (0.1.0 → 1.0.0)
+
+2. **Release Flow**
+   - Push commits to main using conventional commit messages
+   - Release Please automatically creates/updates a release PR
+   - When the release PR is merged:
+     - Version is bumped in `pyproject.toml` and `__init__.py`
+     - Changelog is updated
+     - GitHub release is created
+     - Git tag is created
+
+3. **Publishing**
+   - Publishing to PyPI is a manual step
+   - Go to Actions → Release Management
+   - Click "Run workflow"
+   - Select "Publish current release to PyPI"
+   - Click "Run workflow"
 
 ## Pull Request Process
 
