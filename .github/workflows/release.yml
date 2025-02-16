@@ -38,6 +38,7 @@ jobs:
     
     - name: Update version
       run: |
+        mkdir -p aipr
         echo "__version__ = \"${{ inputs.version }}\"" > aipr/__init__.py
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -100,7 +101,9 @@ jobs:
         echo "\`\`\`" >> release_notes.md
     
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@4634c16e79c2519b1d1f62fb5945dd21922b8a86
+      uses: softprops/action-gh-release@v2.2.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         body_path: release_notes.md
         files: |
@@ -109,6 +112,8 @@ jobs:
         tag_name: v${{ inputs.version }}
         draft: false
         prerelease: ${{ inputs.prerelease }}
+        fail_on_unmatched_files: true
+        generate_release_notes: false
     
     - name: Check PyPI token
       if: inputs.publish_to_pypi
