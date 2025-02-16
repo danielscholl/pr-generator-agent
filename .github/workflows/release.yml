@@ -131,7 +131,6 @@ jobs:
       run: |
         twine upload dist/*
     
-    - name: Push changes
+    - name: Push tag
       run: |
-        git push origin main
         git push origin "v${{ inputs.version }}" 
