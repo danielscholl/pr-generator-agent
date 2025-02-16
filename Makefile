@@ -48,10 +48,6 @@ build: clean
 # GitHub PR target
 # Usage: make pr [title="Your PR title"]
 pr:
-ifdef title
-	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create -t "$(title)" -F -
-else
-	. $(VENV)/bin/activate && aimr -s --vulns --fill | gh pr create --fill -F -
-endif
+	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create --fill --body-file - -t "$(shell git branch --show-current)"
 	@echo "\nPull request created!"
 	@echo "Next step: Wait for review and address any feedback" 

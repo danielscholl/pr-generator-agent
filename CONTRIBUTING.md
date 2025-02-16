@@ -1,6 +1,12 @@
 # Contributing to AIMR
 
-Thank you for your interest in contributing to AIMR! This document provides guidelines and instructions for contributing.
+We welcome pull requests from everyone! Whether it's a bug fix, new feature, or documentation improvement, we appreciate your help. This guide will help you get started.
+
+## Before You Start
+
+- If you're planning a large or complex change, please open an issue first to discuss the approach.
+- Have questions? Open a Discussion or create an Issue with the "question" label.
+- All contributions must follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development Guide
 
@@ -10,7 +16,22 @@ Thank you for your interest in contributing to AIMR! This document provides guid
    - GitHub account
    - GitHub CLI (`gh`) - https://cli.github.com
 
-2. **Initial Setup**
+2. **Development Commands**
+```bash
+# Key make targets
+make install  # Sets up the virtualenv and installs dependencies
+make check    # Runs linting, formatting, tests
+make test     # Just run the test suite
+make pr       # Creates a pull request via gh
+make clean    # Removes build artifacts & venv
+```
+
+3. **Code Style**
+- We use Black for code formatting and Flake8 for linting
+- All code must pass `make check` before being merged
+- GitHub Actions will automatically verify these checks on your PR
+
+4. **Initial Setup**
 ```bash
 # Verify GitHub CLI is installed and authenticated
 gh auth status
@@ -29,7 +50,7 @@ make install
 source .venv/bin/activate 
 ```
 
-3. **Making Changes**
+5. **Making Changes**
 ```bash
 # Ensure your fork is up to date
 git fetch upstream
@@ -54,14 +75,12 @@ make pr                         # Uses commit messages for title and description
 make pr title="Add new feature" # Uses a specific title
 ```
 
-4. **Cleanup**
-```bash
-# Exit development environment
-deactivate
+## Pull Request Process
 
-# Remove virtual environment and build artifacts (optional)
-make clean
-```
+1. After opening a PR, a maintainer will review your changes
+2. We aim to respond within 3 business days
+3. We may request changes or additional tests
+4. Once approved and all checks pass, we'll merge your contribution
 
 ## License
 
