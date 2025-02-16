@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.0 (2025-02-16)
+
+
+### Features
+
+* initial release of AIPR ([81b40cb](https://github.com/danielscholl/pr-generator-agent/commit/81b40cbd77e0bc767e93f657c71d701f494d261b))
+
 ## [1.0.0] - 2025-02-17
 
 ### Added
@@ -22,4 +29,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 - Customizable prompt system with XML-based prompt definitions ([Custom Prompts PRD](docs/custom_prompts_prd.md))
 
-[1.0.0]: https://github.com/danielscholl/pr-generator-agent/releases/tag/v1.0.0 
+[1.0.0]: https://github.com/danielscholl/pr-generator-agent/releases/tag/v1.0.0
