@@ -46,8 +46,12 @@ build: clean
 	. $(VENV)/bin/activate && python -m build
 
 # GitHub PR target
-# Usage: make pr [title="Your PR title"]
+# Usage: make pr title="Your PR title"
 pr:
-	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create --fill --body-file - -t "$(shell git branch --show-current)"
+	@if [ -z "$(title)" ]; then \
+		echo "Error: title parameter is required. Usage: make pr title=\"Your PR title\""; \
+		exit 1; \
+	fi
+	. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"
 	@echo "\nPull request created!"
 	@echo "Next step: Wait for review and address any feedback" 
