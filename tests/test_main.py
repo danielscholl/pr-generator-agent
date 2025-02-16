@@ -31,8 +31,8 @@ def test_version():
 def test_detect_provider_and_model_defaults():
     """Test default model detection"""
     provider, model = detect_provider_and_model(None)
-    assert provider == "azure"
-    assert model == "o1-mini"
+    assert provider == "anthropic"
+    assert model == "claude-3-sonnet-20240229"
 
 
 def test_detect_provider_and_model_azure():
@@ -179,7 +179,7 @@ def test_generate_user_prompt_with_vulns():
 
 
 # Main Function Integration Tests
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_clean_branch(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with a clean branch"""
@@ -201,7 +201,7 @@ def test_main_clean_branch(mock_repo_class, mock_generate, mock_repo, capsys):
     assert "Test MR description" in captured.out
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_with_changes(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with working tree changes (auto-detection)"""
@@ -228,7 +228,7 @@ def test_main_with_changes(mock_repo_class, mock_generate, mock_repo, capsys):
     assert "Test MR description" in captured.out
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_explicit_working_tree(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with explicit working tree changes flag"""
@@ -253,7 +253,7 @@ def test_main_explicit_working_tree(mock_repo_class, mock_generate, mock_repo, c
     assert "Test MR description" in captured.out
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_explicit_target(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with explicit target branch"""
@@ -301,7 +301,7 @@ def test_main_invalid_repo(mock_repo_class, capsys):
     assert "not a valid Git repository" in captured.err
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_no_changes(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with no changes"""
@@ -333,7 +333,7 @@ def test_help(capsys):
 
 
 @patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_with_vulns(mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys):
     """Test main function with vulnerability scanning"""
@@ -390,7 +390,7 @@ def test_main_with_vulns(mock_repo_class, mock_generate, mock_trivy, mock_repo, 
 
 
 @patch("subprocess.run")
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_with_vulnerability_workflow(
     mock_repo_class, mock_generate, mock_trivy_run, mock_repo, capsys
@@ -463,7 +463,7 @@ Updated description with security context
     assert "requests" in output
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with target branch fallback logic"""
@@ -494,7 +494,7 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
     )
 
 
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_mr_output_format(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function output format verification"""
@@ -553,7 +553,7 @@ Low impact change to test functionality.
 
 
 @patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_working_tree_with_vulns(
     mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys
@@ -602,7 +602,7 @@ def test_main_working_tree_with_vulns(
 
 
 @patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_azure_openai")
+@patch("aimr.main.generate_with_anthropic")
 @patch("aimr.main.git.Repo")
 def test_main_single_branch_vuln_scan(
     mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys
