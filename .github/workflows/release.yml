@@ -75,7 +75,7 @@ jobs:
         else
           echo "IS_PRODUCTION=false" >> $GITHUB_OUTPUT
           echo "PRERELEASE=true" >> $GITHUB_OUTPUT
-          if [[ "${{ inputs.dry_run }}" == "false" && "$BRANCH" != release/* ]]; then
+          if [[ "${{ github.event.inputs.dry_run }}" == "false" && "$BRANCH" != release/* ]]; then
             echo "Error: Non-dry-run releases from feature branches must use release/* branch pattern"
             exit 1
           fi
@@ -88,7 +88,7 @@ jobs:
         NEW_VERSION=$(python -c "
 import semver
 current = semver.Version.parse('${CURRENT_VERSION}')
-impact = '${{ inputs.impact }}'
+impact = '${{ github.event.inputs.impact }}'
 if impact == 'major':
     new_ver = current.bump_major()
 elif impact == 'minor':
@@ -107,6 +107,7 @@ print(str(new_ver))
         echo "Calculated version: ${NEW_VERSION}"
 
     - name: Update version
+      if: github.event.inputs.dry_run == 'false'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NEW_VERSION: ${{ steps.version.outputs.NEW_VERSION }}
@@ -132,7 +133,7 @@ with open('pyproject.toml', 'wb') as f:
         git commit -m "Bump version to ${NEW_VERSION}"
         git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
         
-        if [ "${{ inputs.dry_run }}" = "false" ]; then
+        if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
           if [ "${{ steps.version.outputs.IS_PRODUCTION }}" = "true" ]; then
             git push origin HEAD:main
           fi
@@ -179,6 +180,7 @@ with open('pyproject.toml', 'wb') as f:
         echo "\`\`\`" >> release_notes.md
     
     - name: Create GitHub Release
+      if: github.event.inputs.dry_run == 'false'
       uses: softprops/action-gh-release@v2.2.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -194,7 +196,7 @@ with open('pyproject.toml', 'wb') as f:
         generate_release_notes: false
     
     - name: Check PyPI token
-      if: inputs.publish_to_pypi
+      if: github.event.inputs.publish_to_pypi == true && github.event.inputs.dry_run == false
       run: |
         if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
           echo "Error: PYPI_API_TOKEN secret is not set"
@@ -202,7 +204,7 @@ with open('pyproject.toml', 'wb') as f:
         fi
     
     - name: Publish to PyPI
-      if: inputs.publish_to_pypi
+      if: github.event.inputs.publish_to_pypi == true && github.event.inputs.dry_run == false
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
