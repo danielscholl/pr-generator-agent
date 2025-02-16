@@ -1,5 +1,5 @@
 """
-Tests for the main AIMR functionality
+Tests for the main AIPR functionality
 """
 
 from unittest.mock import MagicMock, Mock, call, patch
@@ -8,7 +8,7 @@ import pytest
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
-from aimr.main import (
+from aipr.main import (
     ENDC,
     YELLOW,
     compare_vulnerabilities,
@@ -16,13 +16,13 @@ from aimr.main import (
     main,
     run_trivy_scan,
 )
-from aimr.prompts import PromptManager
-from aimr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
+from aipr.prompts import PromptManager
+from aipr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 
 def test_version():
     """Test that version is properly set"""
-    from aimr import __version__
+    from aipr import __version__
 
     assert isinstance(__version__, str)
     assert len(__version__.split(".")) == 3
@@ -35,6 +35,36 @@ def test_detect_provider_and_model_defaults():
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
         assert model == "claude-3-sonnet-20240229"
+
+
+def test_detect_provider_and_model_aliases():
+    """Test all documented model aliases"""
+    test_cases = [
+        # Simple provider aliases
+        ("claude", ("anthropic", "claude-3-sonnet-20240229")),
+        ("azure", ("azure", "gpt-4o-mini")),
+        ("openai", ("openai", "gpt-4o")),
+        # Azure model aliases
+        ("azure/gpt-4", ("azure", "gpt-4o")),
+        ("azure/gpt-4o", ("azure", "gpt-4o")),
+        ("azure/gpt-4o-mini", ("azure", "gpt-4o-mini")),
+        ("azure/o1-mini", ("azure", "o1-mini")),
+        # OpenAI model aliases
+        ("gpt-4o", ("openai", "gpt-4")),
+        ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
+        ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
+        # Anthropic model aliases
+        ("claude-3", ("anthropic", "claude-3-opus-20240229")),
+        ("claude-3-opus", ("anthropic", "claude-3-opus-20240229")),
+        ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
+        ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
+        ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
+        ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
+    ]
+
+    for input_model, expected in test_cases:
+        provider, model = detect_provider_and_model(input_model)
+        assert (provider, model) == expected, f"Failed for input model: {input_model}"
 
 
 def test_detect_provider_and_model_azure():
@@ -54,7 +84,7 @@ def test_detect_provider_and_model_openai():
     test_cases = [
         ("gpt-4", ("openai", "gpt-4")),
         ("gpt4", ("openai", "gpt-4")),
-        ("gpt-4-turbo", ("openai", "gpt-4-turbo-preview")),
+        ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
         ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
     ]
     for input_model, expected in test_cases:
@@ -181,8 +211,8 @@ def test_prompt_generation():
 
 
 # Main Function Integration Tests
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_with_changes(mock_repo_class, mock_generate, capsys):
     """Test main function with changes"""
     # Setup mock repo
@@ -207,8 +237,8 @@ def test_main_with_changes(mock_repo_class, mock_generate, capsys):
     assert "test response" in captured.out
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_clean_branch(mock_repo_class, mock_generate, capsys):
     """Test main function with clean branch"""
     # Setup mock repo
@@ -237,8 +267,8 @@ def test_main_clean_branch(mock_repo_class, mock_generate, capsys):
     assert "test response" in captured.out
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_explicit_working_tree(mock_repo_class, mock_generate, capsys):
     """Test main function with explicit working tree flag"""
     # Setup mock repo
@@ -262,7 +292,7 @@ def test_main_explicit_working_tree(mock_repo_class, mock_generate, capsys):
     assert "test response" in captured.out
 
 
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.git.Repo")
 def test_main_invalid_repo(mock_repo_class, capsys):
     """Test main function with invalid repository"""
     mock_repo_class.side_effect = InvalidGitRepositoryError()
@@ -275,8 +305,8 @@ def test_main_invalid_repo(mock_repo_class, capsys):
     assert "not a valid Git repository" in captured.err
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_no_changes(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with no changes"""
     mock_repo.git.diff.return_value = ""
@@ -306,9 +336,9 @@ def test_help(capsys):
     assert "Generate MR description" in captured.out
 
 
-@patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.run_trivy_scan")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_with_vulnerability_workflow(
     mock_repo_class, mock_generate, mock_trivy_run, mock_repo, capsys
 ):
@@ -372,8 +402,8 @@ Updated description with security context
     assert "Initial description of changes" in output
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function with target branch fallback logic"""
     mock_repo_class.return_value = mock_repo
@@ -402,8 +432,8 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
     assert "Test MR description" in captured.out
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_mr_output_format(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function output format verification"""
     mock_repo_class.return_value = mock_repo
@@ -460,9 +490,9 @@ Low impact change to test functionality.
     assert "Modified test_function" in output
 
 
-@patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.run_trivy_scan")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_working_tree_with_vulns(
     mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys
 ):
@@ -509,9 +539,9 @@ def test_main_working_tree_with_vulns(
     assert "Test MR description with vulnerabilities" in captured.out
 
 
-@patch("aimr.main.run_trivy_scan")
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.git.Repo")
+@patch("aipr.main.run_trivy_scan")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.git.Repo")
 def test_main_single_branch_vuln_scan(
     mock_repo_class, mock_generate, mock_trivy, mock_repo, capsys
 ):
@@ -579,28 +609,28 @@ def mock_repo():
 
 @pytest.fixture
 def mock_anthropic():
-    with patch("aimr.main.generate_with_anthropic") as mock:
+    with patch("aipr.main.generate_with_anthropic") as mock:
         mock.return_value = "Test description"
         yield mock
 
 
 @pytest.fixture
 def mock_azure():
-    with patch("aimr.main.generate_with_azure_openai") as mock:
+    with patch("aipr.main.generate_with_azure_openai") as mock:
         mock.return_value = "Test description"
         yield mock
 
 
 @pytest.fixture
 def mock_openai():
-    with patch("aimr.main.generate_with_openai") as mock:
+    with patch("aipr.main.generate_with_openai") as mock:
         mock.return_value = "Test description"
         yield mock
 
 
 @pytest.fixture
 def mock_trivy():
-    with patch("aimr.main.run_trivy_scan") as mock:
+    with patch("aipr.main.run_trivy_scan") as mock:
         mock.return_value = {"vulnerabilities": []}
         yield mock
 
@@ -615,7 +645,7 @@ def test_main_anthropic(mock_repo, mock_anthropic):
         prompt=None,
     )
 
-    with patch("aimr.main.parse_args", return_value=args):
+    with patch("aipr.main.parse_args", return_value=args):
         try:
             result = main(args)
             assert result == "Test description"
@@ -624,15 +654,15 @@ def test_main_anthropic(mock_repo, mock_anthropic):
             pass
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.generate_with_azure_openai")
-@patch("aimr.main.generate_with_openai")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.generate_with_azure_openai")
+@patch("aipr.main.generate_with_openai")
 def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with OpenAI"""
     args = Mock(model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None)
     mock_openai_gen.return_value = "Test description"
 
-    with patch("aimr.main.parse_args", return_value=args):
+    with patch("aipr.main.parse_args", return_value=args):
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             try:
                 result = main(args)
@@ -644,9 +674,9 @@ def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_r
                 pass
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.generate_with_azure_openai")
-@patch("aimr.main.generate_with_openai")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.generate_with_azure_openai")
+@patch("aipr.main.generate_with_openai")
 def test_main_azure(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with Azure OpenAI"""
     args = Mock(
@@ -654,7 +684,7 @@ def test_main_azure(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_re
     )
     mock_azure_gen.return_value = "Test description"
 
-    with patch("aimr.main.parse_args", return_value=args):
+    with patch("aipr.main.parse_args", return_value=args):
         with patch.dict(
             "os.environ",
             {
@@ -673,9 +703,9 @@ def test_main_azure(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_re
                 pass
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.generate_with_azure_openai")
-@patch("aimr.main.generate_with_openai")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.generate_with_azure_openai")
+@patch("aipr.main.generate_with_openai")
 def test_main_with_vulns(
     mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo, mock_trivy
 ):
@@ -707,7 +737,7 @@ def test_main_with_vulns(
         ]
     }
 
-    with patch("aimr.main.parse_args", return_value=args):
+    with patch("aipr.main.parse_args", return_value=args):
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             try:
                 main(args)
@@ -777,9 +807,9 @@ def test_prompt_manager():
     assert "Test vulnerability" in user_prompt_with_vulns
 
 
-@patch("aimr.providers.OpenAI")
-@patch("aimr.providers.AzureOpenAI")
-@patch("aimr.providers.anthropic.Anthropic")
+@patch("aipr.providers.OpenAI")
+@patch("aipr.providers.AzureOpenAI")
+@patch("aipr.providers.anthropic.Anthropic")
 def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
     """Test that provider clients are created correctly"""
     # Setup mock responses
@@ -822,9 +852,9 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
         mock_openai.assert_called_once()
 
 
-@patch("aimr.main.generate_with_anthropic")
-@patch("aimr.main.generate_with_azure_openai")
-@patch("aimr.main.generate_with_openai")
+@patch("aipr.main.generate_with_anthropic")
+@patch("aipr.main.generate_with_azure_openai")
+@patch("aipr.main.generate_with_openai")
 def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with Azure OpenAI o1-mini model that doesn't support system messages"""
     args = Mock(
@@ -842,7 +872,7 @@ def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen,
     mock_repo = MagicMock()
     mock_repo.git.diff.return_value = "test diff"
 
-    with patch("aimr.main.parse_args", return_value=args):
+    with patch("aipr.main.parse_args", return_value=args):
         with patch.dict(
             "os.environ",
             {

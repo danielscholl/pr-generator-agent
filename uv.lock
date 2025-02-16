@@ -6,7 +6,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "aimr"
+name = "aipr"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -1,4 +1,4 @@
-"""Prompt management for AIMR."""
+"""Prompt management for AIPR."""
 
 import importlib.resources
 import json
@@ -32,7 +32,7 @@ class PromptManager:
                 # Try package resources
                 try:
                     with (
-                        importlib.resources.files("aimr.prompts")
+                        importlib.resources.files("aipr.prompts")
                         .joinpath(f"{prompt_name}.xml")
                         .open("r") as f
                     ):

@@ -38,10 +38,10 @@ jobs:
     
     - name: Update version
       run: |
-        echo "__version__ = \"${{ inputs.version }}\"" > aimr/__init__.py
+        echo "__version__ = \"${{ inputs.version }}\"" > aipr/__init__.py
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add aimr/__init__.py
+        git add aipr/__init__.py
         git commit -m "Bump version to ${{ inputs.version }}"
         git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
     
@@ -58,7 +58,7 @@ jobs:
     
     - name: Run tests
       run: |
-        pip install -e ".[dev]"
+        pip install -e "./aipr[dev]"
         pytest
     
     - name: Build package
@@ -72,7 +72,7 @@ jobs:
     - name: Generate Release Notes
       run: |
         # Generate release notes
-        echo "# AIMR v${{ inputs.version }}" > release_notes.md
+        echo "# AIPR v${{ inputs.version }}" > release_notes.md
         echo "" >> release_notes.md
         echo "## What's Changed" >> release_notes.md
         echo "" >> release_notes.md
@@ -85,10 +85,10 @@ jobs:
         echo "" >> release_notes.md
         echo "\`\`\`bash" >> release_notes.md
         echo "# Install using pipx (recommended)" >> release_notes.md
-        echo "pipx install aimr" >> release_notes.md
+        echo "pipx install aipr" >> release_notes.md
         echo "" >> release_notes.md
         echo "# Or install using pip" >> release_notes.md
-        echo "pip install aimr" >> release_notes.md
+        echo "pip install aipr" >> release_notes.md
         echo "\`\`\`" >> release_notes.md
     
     - name: Create GitHub Release
