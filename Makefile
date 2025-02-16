@@ -45,7 +45,6 @@ clean:
 build: clean
 	. $(VENV)/bin/activate && python -m build
 
-<<<<<<< HEAD
 # GitHub PR target
 # Usage: make pr title="Your PR title"
 pr:
@@ -71,13 +70,15 @@ pr:
 		echo "Error: You have unpushed commits. Please push them first: git push"; \
 		exit 1; \
 	fi
-	. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"
-	@echo "\nPull request created!"
-=======
-# GitHub PR / GitLab MR target
-# Usage: make mr
-mr:
-	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create --fill --body-file - -t "$(shell git branch --show-current)"
-	@echo "\nMerge request created!"
->>>>>>> main
-	@echo "Next step: Wait for review and address any feedback" 
+	@BRANCH=$$(git branch --show-current); \
+	if gh pr view $$BRANCH --json number >/dev/null 2>&1; then \
+		echo "Updating existing pull request for branch $$BRANCH..."; \
+		. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr edit $$BRANCH --body-file -; \
+		echo "\nPull request updated!"; \
+		echo "Next step: Address any new feedback"; \
+	else \
+		echo "Creating new pull request for branch $$BRANCH..."; \
+		. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"; \
+		echo "\nPull request created!"; \
+		echo "Next step: Wait for review and address any feedback"; \
+	fi 
