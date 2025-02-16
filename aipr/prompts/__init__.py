@@ -1,5 +1,5 @@
 """Prompt templates for AIPR."""
 
-from .prompts import PromptManager
+from .prompts import InvalidPromptError, PromptManager
 
-__all__ = ["PromptManager"]
+__all__ = ["PromptManager", "InvalidPromptError"]
