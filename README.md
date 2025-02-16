@@ -35,26 +35,39 @@ AIMR analyzes your code changes and automatically generates high-quality merge r
 ## Example Usage
 
 ```bash
-# Basic usage - auto-detect and describe changes
+# Basic usage - analyze current changes
 aimr
 
-# With security scanning (requires Trivy)
+# Compare with specific branch and include security scan
 aimr -t main --vulns
+```
 
-# Output example:
-# Title: Add user authentication and update dependencies
-#
-# Changes:
-# 1. Added JWT-based authentication middleware
-# 2. Updated bcrypt package to v5.1.1 for security fixes
-# 3. Added user login and registration endpoints
-#
-# Security Analysis:
-# - Fixed 2 medium severity vulnerabilities in dependencies
-# - No new vulnerabilities introduced
+Example Output:
+```
+AIMR - AI-powered Merge Request Description Generator
 
-# Create GitLab MR directly
-glab mr create -d "$(aimr -s)" -t "feat: Add user authentication"
+Changes:
+
+1. **Added User Authentication**
+   - Implemented JWT middleware
+   - Added login/register endpoints
+   - Updated bcrypt to v5.1.1
+
+2. **Security Updates**
+   - Fixed 2 medium severity vulnerabilities
+   - Updated deprecated crypto functions
+
+Security Analysis:
+✓ No new vulnerabilities introduced
+```
+
+# Create pull requests directly
+```bash
+# GitHub PR creation
+gh pr create -b "$(aimr -s)" -t "feat: Add authentication"
+
+# GitLab MR creation
+glab mr create -d "$(aimr -s)" -t "feat: Add authentication"
 ```
 
 ## Requirements
