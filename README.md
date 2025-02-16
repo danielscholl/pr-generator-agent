@@ -107,6 +107,16 @@ Choose from multiple AI providers:
 | | `gpt-3.5-turbo` | |
 | | `openai` | alias for `gpt-4o` |
 
+## Custom Prompts
+
+AIPR supports custom prompt templates that allow you to tailor merge request descriptions to your team's specific needs. Custom prompts enable you to:
+- Define consistent formatting across your team
+- Include organization-specific requirements
+- Add custom sections and validation rules
+- Provide examples that match your team's standards
+
+For detailed information on creating and using custom prompts, see our [Custom Prompts Tutorial](docs/custom_prompts.md).
+
 ## Contributing
 
 We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details on:

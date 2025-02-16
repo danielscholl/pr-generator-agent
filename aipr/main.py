@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import git
 import tiktoken
 
-from .prompts import PromptManager
+from .prompts import InvalidPromptError, PromptManager
 from .providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 # ANSI color codes
@@ -428,7 +428,10 @@ prompt templates:
     parser.add_argument(
         "-p",
         "--prompt",
-        help="Prompt template to use (see prompt templates below)",
+        help=(
+            "Specify either a built-in prompt name (e.g., 'meta') or "
+            "a path to a custom XML prompt file (e.g., '~/prompts/custom.xml')"
+        ),
     )
     return parser.parse_args(args)
 
@@ -487,13 +490,18 @@ def main(args=None):
     args = parse_args(args)
 
     try:
-        repo = git.Repo(search_parent_directories=True)
-    except git.exc.InvalidGitRepositoryError:
-        print("Error: Directory is not a valid Git repository.", file=sys.stderr)
+        repo = git.Repo(os.getcwd(), search_parent_directories=True)
+    except git.InvalidGitRepositoryError:
+        print(f"{RED}Error: Directory is not a valid Git repository{ENDC}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        prompt_manager = PromptManager(args.prompt)
+    except InvalidPromptError as e:
+        print(f"{RED}Error: {str(e)}{ENDC}")
         sys.exit(1)
 
     provider, model = detect_provider_and_model(args.model)
-    prompt_manager = PromptManager(args.prompt)
 
     # Get the diff based on the state
     diff = ""
@@ -601,9 +609,13 @@ def main(args=None):
             vuln_data,
             provider,
             model,
-            prompt_manager.get_system_prompt(),
-            args.verbose,  # Pass verbose flag instead of debug
-            prompt_manager,  # Pass the prompt manager
+            (
+                prompt_manager.get_system_prompt()
+                if prompt_manager
+                else PromptManager().get_system_prompt()
+            ),
+            args.verbose,
+            prompt_manager or PromptManager(),  # Ensure we always pass a valid PromptManager
         )
 
         if args.verbose:
@@ -614,6 +626,8 @@ def main(args=None):
     except Exception as e:
         print(f"{RED}Error: {provider.title()} API - {e}{ENDC}", file=sys.stderr)
         sys.exit(1)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

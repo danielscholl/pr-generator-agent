@@ -4,11 +4,20 @@ import importlib.resources
 import json
 import os
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import Union
+
+
+class InvalidPromptError(Exception):
+    """Raised when a prompt file is invalid."""
+
+    pass
 
 
 class PromptManager:
     """Manages system and user prompts for AI models."""
+
+    REQUIRED_XML_ELEMENTS = ["changes-set", "vulnerabilities-set"]
 
     def __init__(self, prompt_name: str = None):
         self._default_system_prompt = (
@@ -21,39 +30,79 @@ class PromptManager:
 
         self.prompt_name = prompt_name
         self._xml_prompt = None
+
         if prompt_name:
-            # First try as a direct path
-            if os.path.exists(prompt_name):
-                self._load_xml_prompt(prompt_name)
-            elif os.path.exists(os.path.join("prompts", f"{prompt_name}.xml")):
-                # Try local prompts directory
-                self._load_xml_prompt(os.path.join("prompts", f"{prompt_name}.xml"))
-            else:
-                # Try package resources
-                try:
-                    with (
-                        importlib.resources.files("aipr.prompts")
-                        .joinpath(f"{prompt_name}.xml")
-                        .open("r") as f
-                    ):
-                        self._load_xml_prompt_from_string(f.read())
-                except Exception as e:
-                    raise ValueError(f"Error loading prompt template '{prompt_name}': {e}")
+            self._load_prompt(prompt_name)
+
+    def _load_prompt(self, prompt_name: str) -> None:
+        """Load a prompt from either a file path or a built-in prompt name."""
+        # First check if this is a file path (has .xml extension)
+        path = Path(os.path.expanduser(prompt_name))
+        if path.suffix == ".xml":
+            if path.exists():
+                self._load_xml_prompt(str(path))
+                return
+            # Try local prompts directory
+            local_path = Path("prompts") / path.name
+            if local_path.exists():
+                self._load_xml_prompt(str(local_path))
+                return
+            raise InvalidPromptError(f"Prompt file not found: {path}")
+
+        # If no .xml extension, treat as a built-in prompt name
+        available_prompts = self._get_available_prompts()
+        try:
+            with (
+                importlib.resources.files("aipr.prompts").joinpath(f"{prompt_name}.xml").open("r")
+            ) as f:
+                self._load_xml_prompt_from_string(f.read())
+        except Exception as e:
+            raise InvalidPromptError(
+                f"Could not load prompt '{prompt_name}'. "
+                f"Error: {e}\n\n"
+                f"Available built-in prompts: {', '.join(available_prompts)}"
+            )
+
+    def _validate_xml_prompt(self, root: ET.Element) -> None:
+        """Validate that the XML prompt has all required elements."""
+        for element in self.REQUIRED_XML_ELEMENTS:
+            if root.find(f".//{element}") is None:
+                raise InvalidPromptError(
+                    f"Invalid prompt file: Missing required element '{element}'"
+                )
 
     def _load_xml_prompt(self, file_path: str) -> None:
         """Load and parse the XML prompt template from a file."""
         try:
             tree = ET.parse(file_path)
-            self._xml_prompt = tree.getroot()
+            root = tree.getroot()
+            self._validate_xml_prompt(root)
+            self._xml_prompt = root
         except ET.ParseError as e:
-            raise ValueError(f"Error parsing XML prompt file: {e}")
+            raise InvalidPromptError(f"Error parsing XML prompt file: {e}")
+        except FileNotFoundError:
+            raise InvalidPromptError(f"Prompt file not found: {file_path}")
+        except PermissionError:
+            raise InvalidPromptError(f"Permission denied reading prompt file: {file_path}")
 
     def _load_xml_prompt_from_string(self, xml_content: str) -> None:
         """Load and parse the XML prompt template from a string."""
         try:
-            self._xml_prompt = ET.fromstring(xml_content)
+            root = ET.fromstring(xml_content)
+            self._validate_xml_prompt(root)
+            self._xml_prompt = root
         except ET.ParseError as e:
-            raise ValueError(f"Error parsing XML prompt content: {e}")
+            raise InvalidPromptError(f"Error parsing XML prompt content: {e}")
+
+    def _get_available_prompts(self) -> list[str]:
+        """Get list of available built-in prompts."""
+        try:
+            prompts_dir = importlib.resources.files("aipr.prompts")
+            return [
+                f.stem for f in prompts_dir.iterdir() if f.suffix == ".xml" and f.stem != "__init__"
+            ]
+        except Exception:
+            return []
 
     def get_system_prompt(self) -> str:
         """Get the system prompt."""

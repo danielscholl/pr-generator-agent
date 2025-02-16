@@ -302,7 +302,7 @@ def test_main_invalid_repo(mock_repo_class, capsys):
 
     assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert "not a valid Git repository" in captured.err
+    assert "Directory is not a valid Git repository" in captured.err
 
 
 @patch("aipr.main.generate_with_anthropic")
