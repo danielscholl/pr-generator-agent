@@ -1,4 +1,4 @@
-"""Prompt templates for AIMR."""
+"""Prompt templates for AIPR."""
 
 from .prompts import PromptManager
 

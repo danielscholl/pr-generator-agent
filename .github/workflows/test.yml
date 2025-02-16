@@ -41,9 +41,9 @@ jobs:
           
       - name: Run linters
         run: |
-          black --check aimr/ tests/
-          isort --check aimr/ tests/
-          flake8 aimr/ tests/
+          black --check aipr/ tests/
+          isort --check aipr/ tests/
+          flake8 aipr/ tests/
 
   test:
     name: Python Tests
@@ -79,4 +79,4 @@ jobs:
           
       - name: Run tests
         run: |
-          pytest --cov=aimr --cov-report=term-missing 
+          pytest --cov=aipr --cov-report=term-missing 

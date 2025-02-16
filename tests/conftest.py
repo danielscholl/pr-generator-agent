@@ -1,5 +1,5 @@
 """
-Shared test fixtures for AIMR
+Shared test fixtures for AIPR
 """
 
 from unittest.mock import MagicMock

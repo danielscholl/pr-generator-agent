@@ -1,6 +1,6 @@
 import os
 
-from aimr.prompts import PromptManager
+from aipr.prompts import PromptManager
 
 
 def test_prompt_manager_initialization():

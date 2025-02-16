@@ -1,4 +1,4 @@
-# Contributing to AIMR
+# Contributing to AIPR
 
 We welcome pull requests from everyone! Whether it's a bug fix, new feature, or documentation improvement, we appreciate your help. This guide will help you get started.
 
@@ -22,7 +22,7 @@ We welcome pull requests from everyone! Whether it's a bug fix, new feature, or 
 make install  # Sets up the virtualenv and installs dependencies
 make check    # Runs linting, formatting, tests
 make test     # Just run the test suite
-make mr       # Creates a merge request via gh/glab
+make pr       # Creates a pull request via gh/glab
 make clean    # Removes build artifacts & venv
 ```
 
@@ -37,8 +37,8 @@ make clean    # Removes build artifacts & venv
 gh auth status
 
 # Fork the repository and clone it
-gh repo fork danielscholl/mr-generator-agent --clone=true
-cd mr-generator-agent
+gh repo fork danielscholl/pr-generator-agent --clone=true
+cd pr-generator-agent
 
 # The gh fork command automatically sets up the upstream remote
 # You can verify with: git remote -v
@@ -84,4 +84,4 @@ make pr title="Add new feature" # Uses a specific title
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License. 
+By contributing, you agree that your contributions will be licensed under the MIT License.

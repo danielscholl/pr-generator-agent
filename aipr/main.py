@@ -23,6 +23,14 @@ BOLD = "\033[1m"
 def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     """Detect which provider and model to use based on environment and args."""
     if model:
+        # Handle simple aliases first
+        if model == "claude":
+            return "anthropic", "claude-3-sonnet-20240229"
+        if model == "azure":
+            return "azure", "gpt-4o-mini"
+        if model == "openai":
+            return "openai", "gpt-4o"
+
         # Handle Azure models
         if model.startswith("azure/"):
             _, model_name = model.split("/", 1)
@@ -41,13 +49,15 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
             if os.getenv("AZURE_OPENAI_ENDPOINT") and model.startswith("azure/"):
                 openai_models = {
                     "gpt4": "gpt-4",
-                    "gpt-4-turbo": "gpt-4-turbo-preview",
+                    "gpt-4-turbo": "gpt-4-turbo",
+                    "gpt-4o": "gpt-4",
                 }
                 return "azure", openai_models.get(model, model)
             else:
                 openai_models = {
                     "gpt4": "gpt-4",
-                    "gpt-4-turbo": "gpt-4-turbo-preview",
+                    "gpt-4-turbo": "gpt-4-turbo",
+                    "gpt-4o": "gpt-4",
                 }
                 return "openai", openai_models.get(model, model)
 
@@ -473,7 +483,7 @@ def generate_description(
 
 
 def main(args=None):
-    """Main entry point for AIMR"""
+    """Main entry point for AIPR"""
     args = parse_args(args)
 
     try:

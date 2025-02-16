@@ -15,18 +15,18 @@ install: clean-pyc
 	# Install in the virtual environment (temporary activation)
 	. $(VENV)/bin/activate && python -m pip install -e ".[dev]"
 	@echo "\nVerifying installation:"
-	@echo "Binary location: $(VENV)/bin/aimr"
-	@echo "Python package location: $$($(VENV)/bin/python -c "import aimr; print(aimr.__file__)")"
+	@echo "Binary location: $(VENV)/bin/aipr"
+	@echo "Python package location: $$($(VENV)/bin/python -c "import aipr; print(aipr.__file__)")"
 	@echo "\nNext step:"
 	@echo "To begin development, run: source .venv/bin/activate"
 	@echo "This will activate the virtual environment in your shell"
 
 format:
-	. $(VENV)/bin/activate && python -m black aimr/ tests/
-	. $(VENV)/bin/activate && python -m isort aimr/ tests/
+	. $(VENV)/bin/activate && python -m black aipr/ tests/
+	. $(VENV)/bin/activate && python -m isort aipr/ tests/
 
 lint:
-	. $(VENV)/bin/activate && python -m flake8 aimr/ tests/
+	. $(VENV)/bin/activate && python -m flake8 aipr/ tests/
 
 test:
 	. $(VENV)/bin/activate && python -m pytest
@@ -40,7 +40,7 @@ clean:
 	rm -rf dist/ build/ *.egg-info .coverage htmlcov/ .pytest_cache/ $(VENV)
 	find . -name '__pycache__' -type d -exec rm -rf {} +
 	@echo "\nNext step:"
-	@echo "Run 'make install' to set up a fresh development environment"
+	@echo "Run 'deactivate' to ensure python is not running in the virtual environment"
 
 build: clean
 	. $(VENV)/bin/activate && python -m build
@@ -73,12 +73,12 @@ pr:
 	@BRANCH=$$(git branch --show-current); \
 	if gh pr view $$BRANCH --json number >/dev/null 2>&1; then \
 		echo "Updating existing pull request for branch $$BRANCH..."; \
-		. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr edit $$BRANCH --body-file -; \
+		. $(VENV)/bin/activate && aipr -s --vulns -m azure/o1-mini -p meta | gh pr edit $$BRANCH --body-file -; \
 		echo "\nPull request updated!"; \
 		echo "Next step: Address any new feedback"; \
 	else \
 		echo "Creating new pull request for branch $$BRANCH..."; \
-		. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"; \
+		. $(VENV)/bin/activate && aipr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"; \
 		echo "\nPull request created!"; \
 		echo "Next step: Wait for review and address any feedback"; \
 	fi 

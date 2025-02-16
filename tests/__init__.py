@@ -1,3 +1,3 @@
 """
-Test suite for AIMR
+Test suite for AIPR
 """
