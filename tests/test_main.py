@@ -333,7 +333,7 @@ def test_help(capsys):
     # Verify help content
     captured = capsys.readouterr()
     assert "usage:" in captured.out
-    assert "Generate MR description" in captured.out
+    assert "Generate PR description" in captured.out
 
 
 @patch("aipr.main.run_trivy_scan")
@@ -410,7 +410,7 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
     mock_repo.active_branch.name = "feature-branch"
     mock_repo.git.diff.return_value = "test diff content"
     mock_repo.is_dirty.return_value = False
-    mock_generate.return_value = "Test MR description"
+    mock_generate.return_value = "Test PR description"
 
     # Set up mock branches with main as default
     mock_repo.heads = [MagicMock(name="main"), MagicMock(name="feature-branch")]
@@ -429,12 +429,12 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
 
     # Verify output
     captured = capsys.readouterr()
-    assert "Test MR description" in captured.out
+    assert "Test PR description" in captured.out
 
 
 @patch("aipr.main.generate_with_anthropic")
 @patch("aipr.main.git.Repo")
-def test_main_mr_output_format(mock_repo_class, mock_generate, mock_repo, capsys):
+def test_main_pr_output_format(mock_repo_class, mock_generate, mock_repo, capsys):
     """Test main function output format verification"""
     mock_repo_class.return_value = mock_repo
     mock_repo.active_branch.name = "feature-branch"
@@ -450,7 +450,7 @@ index 1234567..89abcdef 100644
 +    return True
 """
 
-    # Mock a detailed MR description
+    # Mock a detailed PR description
     mock_generate.return_value = """
 ### Merge Request
 
@@ -520,7 +520,7 @@ def test_main_working_tree_with_vulns(
         ]
     }
 
-    mock_generate.return_value = "Test MR description with vulnerabilities"
+    mock_generate.return_value = "Test PR description with vulnerabilities"
 
     # Run main with both working tree and vulnerability scanning
     try:
@@ -536,7 +536,7 @@ def test_main_working_tree_with_vulns(
 
     # Verify output
     captured = capsys.readouterr()
-    assert "Test MR description with vulnerabilities" in captured.out
+    assert "Test PR description with vulnerabilities" in captured.out
 
 
 @patch("aipr.main.run_trivy_scan")
@@ -576,7 +576,7 @@ def test_main_single_branch_vuln_scan(
         ]
     }
 
-    mock_generate.return_value = "Test MR description with single branch vulnerabilities"
+    mock_generate.return_value = "Test PR description with single branch vulnerabilities"
 
     # Run main with vulnerability scanning but no valid target branch
     try:
@@ -593,7 +593,7 @@ def test_main_single_branch_vuln_scan(
 
     # Verify output
     captured = capsys.readouterr()
-    assert "Test MR description with single branch vulnerabilities" in captured.out
+    assert "Test PR description with single branch vulnerabilities" in captured.out
 
 
 @pytest.fixture

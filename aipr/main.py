@@ -392,7 +392,7 @@ class ColorHelpFormatter(argparse.RawDescriptionHelpFormatter):
 def parse_args(args=None):
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate MR description from git diff",
+        description="Generate PR description from git diff",
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:

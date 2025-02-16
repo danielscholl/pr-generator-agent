@@ -14,6 +14,11 @@ on:
       - '.gitignore'
       - 'LICENSE'
 
+# Minimal permissions required for running tests and linting
+permissions:
+  contents: read  # Needed to checkout code
+  checks: write   # Needed for test reporting
+
 jobs:
   lint:
     name: Code Quality Checks
