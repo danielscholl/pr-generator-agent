@@ -20,6 +20,10 @@ on:
 
 permissions:
   contents: write  # Needed for creating releases
+  pull-requests: write
+  id-token: write
+  # Add permission for code-scanning
+  security-events: write
 
 jobs:
   release:
@@ -28,6 +32,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch all history for changelog generation
+    
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: python
     
     - name: Validate version format
       run: |
@@ -60,7 +69,14 @@ jobs:
       run: |
         pytest
     
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:python"
+    
     - name: Update version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Determine package directory from pyproject.toml
         PACKAGE_DIR=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['name'])")
