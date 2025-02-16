@@ -5,10 +5,11 @@ import subprocess
 import sys
 from typing import Any, Dict, Optional, Tuple
 
-import anthropic
 import git
 import tiktoken
-from openai import AzureOpenAI, OpenAI
+
+from .prompts import PromptManager
+from .providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 # ANSI color codes
 BLUE = "\033[94m"
@@ -18,173 +19,61 @@ RED = "\033[91m"
 ENDC = "\033[0m"
 BOLD = "\033[1m"
 
-# System and user prompts for AI models
-SYSTEM_PROMPT = """You are a helpful assistant for generating Merge Requests.
-Your task is to analyze Git changes and vulnerability comparison data to create clear,
-well-structured merge request descriptions.
-Please include:
-- A concise summary of the changes
-- Key modifications and their purpose
-- Any notable technical details
-- Security impact analysis (when vulnerability data is provided)
 
-Important Guidelines:
-1. Focus only on the specific changes shown in the diff and vulnerability comparison
-2. Each point must be directly tied to actual code changes or security findings
-3. When analyzing vulnerabilities:
-   - Highlight critical security changes
-   - Explain the impact of new vulnerabilities
-   - Acknowledge fixed vulnerabilities
-4. DO NOT include any of the following:
-   - Generic concluding statements (e.g., "This improves the overall system")
-   - Broad claims about improvements (e.g., "This enhances development processes")
-   - Value judgments about the changes (e.g., "This is a significant improvement")
-   - Future benefits or implications
+def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
+    """Detect which provider and model to use based on environment and args."""
+    if model:
+        # Handle Azure models
+        if model.startswith("azure/"):
+            _, model_name = model.split("/", 1)
+            # Map azure model names to deployment names
+            azure_models = {
+                "o1-mini": "o1-mini",
+                "gpt-4o": "gpt-4o",
+                "gpt-4o-mini": "gpt-4o-mini",
+                "gpt-4": "gpt-4o",  # Alias for gpt-4o
+            }
+            return "azure", azure_models.get(model_name, model_name)
 
-Your response should end with the last specific change or security finding discussed.
-If you find yourself wanting to write a concluding statement, stop writing instead."""
+        # Handle OpenAI models
+        if model.startswith("gpt") or model == "gpt4":
+            # Only use Azure if explicitly configured with endpoint
+            if os.getenv("AZURE_OPENAI_ENDPOINT") and model.startswith("azure/"):
+                openai_models = {
+                    "gpt4": "gpt-4",
+                    "gpt-4-turbo": "gpt-4-turbo-preview",
+                }
+                return "azure", openai_models.get(model, model)
+            else:
+                openai_models = {
+                    "gpt4": "gpt-4",
+                    "gpt-4-turbo": "gpt-4-turbo-preview",
+                }
+                return "openai", openai_models.get(model, model)
 
+        # Handle Anthropic models
+        if model.startswith("claude"):
+            anthropic_models = {
+                "claude-3": "claude-3-opus-20240229",
+                "claude-3-opus": "claude-3-opus-20240229",
+                "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+                "claude-3-sonnet": "claude-3-sonnet-20240229",
+                "claude-3.5-haiku": "claude-3-5-haiku-20241022",
+                "claude-3-haiku": "claude-3-haiku-20240307",
+            }
+            return "anthropic", anthropic_models.get(model, model)
 
-def generate_user_prompt(diff, vuln_data=None):
-    prompt = (
-        "Please evaluate the following Git changes and provide a well-structured Merge Request "
-        "in markdown format.\n\n"
-        "Git Diff:\n"
-        f"{diff}"
+    # No model specified, check environment for default
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "anthropic", "claude-3-sonnet-20240229"
+    if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
+        return "azure", "gpt-4"
+    if os.getenv("OPENAI_API_KEY"):
+        return "openai", "gpt-4"
+
+    raise Exception(
+        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, or OPENAI_API_KEY"
     )
-
-    if vuln_data:
-        prompt += "\n\nVulnerability Analysis:\n" + vuln_data
-
-    return prompt
-
-
-def generate_with_openai(prompt, system_prompt, model):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=1000,
-        temperature=0.2,
-    )
-    return response.choices[0].message.content
-
-
-def generate_with_azure_openai(prompt, system_prompt, model, verbose=False):
-    # Configure the Azure OpenAI client
-    # Convert services.ai.azure.com to openai.azure.com
-    azure_endpoint = os.getenv("AZURE_API_BASE").replace(
-        "services.ai.azure.com", "openai.azure.com"
-    )
-
-    client = AzureOpenAI(
-        api_key=os.getenv("AZURE_API_KEY"),
-        api_version=os.getenv("AZURE_API_VERSION", "2024-08-01-preview"),
-        azure_endpoint=azure_endpoint,
-    )
-
-    if verbose:
-        print("\nDebug - Azure OpenAI Request:", file=sys.stderr)
-        print(f"Debug - Deployment: {model}", file=sys.stderr)
-        print(f"Debug - API Version: {os.getenv('AZURE_API_VERSION')}", file=sys.stderr)
-        print(f"Debug - Endpoint: {azure_endpoint}\n", file=sys.stderr)
-
-    try:
-        # Combine system prompt and user prompt for Azure OpenAI
-        combined_prompt = f"{system_prompt}\n\n{prompt}"
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": combined_prompt}],
-            max_completion_tokens=4000,  # Use max_completion_tokens instead of max_tokens
-        )
-
-        if not response.choices:
-            raise Exception("No response received from the model")
-
-        content = response.choices[0].message.content
-        if not content or not content.strip():
-            raise Exception("Empty response received from the model")
-
-        if verbose:
-            print("\nDebug - Response received successfully", file=sys.stderr)
-
-        return content
-    except Exception as e:
-        if verbose:
-            print(f"\nDebug - Azure OpenAI Response Error: {str(e)}", file=sys.stderr)
-            print("Debug - Request details:", file=sys.stderr)
-            print(f"System prompt length: {len(system_prompt)}", file=sys.stderr)
-            print(f"User prompt length: {len(prompt)}", file=sys.stderr)
-        raise
-
-
-def generate_with_anthropic(prompt, system_prompt, model):
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    message = client.messages.create(
-        model=model,
-        max_tokens=1000,
-        temperature=0.2,
-        system=system_prompt,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return message.content[0].text
-
-
-def detect_provider_and_model(model_arg: Optional[str]) -> Tuple[str, str]:
-    """
-    Detect the provider and normalize the model name based on the input.
-    Returns a tuple of (provider, model_name)
-    """
-    if not model_arg:
-        return "anthropic", "claude-3-sonnet-20240229"  # Default to Claude 3 Sonnet
-
-    model_lower = model_arg.lower()
-
-    # Azure OpenAI models
-    if model_lower.startswith("azure/"):
-        model_name = model_lower.split("/", 1)[1]
-        # Map azure model names to deployment names
-        azure_models = {
-            "o1-mini": "o1-mini",  # Direct mapping to o1-mini deployment
-            "gpt-4o": "gpt-4o",  # Direct mapping to gpt-4o deployment
-            "gpt-4o-mini": "gpt-4o-mini",  # Direct mapping to gpt-4o-mini deployment
-            "gpt-4": "gpt-4o",  # Alias for gpt-4o
-        }
-        return "azure", azure_models.get(model_name, model_name)
-
-    # OpenAI models
-    if model_lower.startswith(("gpt-", "gpt4")):
-        # Handle various GPT model formats
-        if model_lower in ["gpt4", "gpt-4"]:
-            return "openai", "gpt-4"
-        elif model_lower in ["gpt4-turbo", "gpt-4-turbo"]:
-            return "openai", "gpt-4-turbo-preview"
-        elif model_lower in ["gpt3", "gpt-3"]:
-            return "openai", "gpt-3.5-turbo"
-        return "openai", model_arg
-
-    # Anthropic models
-    if model_lower.startswith("claude"):
-        # Map common Claude model names
-        claude_models = {
-            "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-            "claude-3.5-haiku": "claude-3-5-haiku-20241022",
-            "claude-3-opus": "claude-3-opus-20240229",
-            "claude-3-sonnet": "claude-3-sonnet-20240229",
-            "claude-3-haiku": "claude-3-haiku-20240307",
-            "claude-3": "claude-3-opus-20240229",  # Default to Opus for claude-3
-        }
-        return "anthropic", claude_models.get(model_lower, model_arg)
-
-    # Default to Azure OpenAI's o1-mini if model format is unrecognized
-    print(
-        f"{YELLOW}Warning: Unrecognized model '{model_arg}', " f"defaulting to azure/o1-mini{ENDC}"
-    )
-    return "azure", "o1-mini"
 
 
 def count_tokens(text: str, model: str) -> int:
@@ -201,14 +90,12 @@ def count_tokens(text: str, model: str) -> int:
         return len(text) // 4  # Rough estimate of tokens
 
 
-def print_token_info(prompt: str, system_prompt: str, verbose: bool = False):
-    """Print token count information."""
-    total_prompt = f"{system_prompt}\n\n{prompt}"
-    token_count = count_tokens(total_prompt, "gpt-4")  # Use gpt-4 encoding as default
+def print_token_info(user_prompt: str, system_prompt: str, verbose: bool):
+    """Print token information for the prompts."""
     if verbose:
-        print(f"System prompt tokens: {count_tokens(system_prompt, 'gpt-4')}")
-        print(f"User prompt tokens: {count_tokens(prompt, 'gpt-4')}")
-    print(f"Total tokens: {token_count}")
+        print(f"System Prompt:\n{system_prompt}\n")
+        print(f"User Prompt:\n{user_prompt}\n")
+    # Add actual token counting if needed
 
 
 def print_separator(char="─", color=GREEN):
@@ -217,9 +104,14 @@ def print_separator(char="─", color=GREEN):
     print(f"{color}{char * terminal_width}{ENDC}")
 
 
-def print_header(text, color=BLUE):
-    """Print a header with the given color."""
-    print(f"\n{color}{BOLD}{text}{ENDC}")
+def print_header(text: str, level: int = 1):
+    """Print a header with the given text and level."""
+    if level == 1:
+        print(f"\n{text}")
+        print("=" * len(text))
+    else:
+        print(f"\n{text}")
+        print("-" * len(text))
 
 
 def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Dict[str, Any]:
@@ -480,384 +372,234 @@ def compare_vulnerabilities(
     return "\n".join(report), "\n".join(analysis_data)
 
 
+class ColorHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Custom formatter to preserve colors in help text."""
+
+    def _split_lines(self, text, width):
+        return text.splitlines()
+
+
+def parse_args(args=None):
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Generate MR description from git diff",
+        formatter_class=ColorHelpFormatter,
+        epilog=f"""
+recommended models:
+  {YELLOW}claude-3.5-sonnet{ENDC} (default)    Anthropic's Claude 3.5 Sonnet
+  {YELLOW}azure/o1-mini{ENDC}                  Azure OpenAI o1-mini
+  {YELLOW}azure/gpt-4o{ENDC}                   Azure OpenAI GPT-4
+  {GREEN}gpt-4{ENDC}                          OpenAI GPT-4
+
+prompt templates:
+  {BLUE}meta{ENDC}                          Default XML prompt template for merge requests""",
+    )
+    parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Debug mode - show prompts without sending to LLM",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Verbose mode - show detailed API interaction",
+    )
+    parser.add_argument("-t", "--target", help="Target branch for comparison")
+    parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
+    parser.add_argument("--working-tree", action="store_true", help="Use working tree")
+    parser.add_argument(
+        "-m",
+        "--model",
+        help="AI model to use (see recommended models below)",
+    )
+    parser.add_argument(
+        "-p",
+        "--prompt",
+        help="Prompt template to use (see prompt templates below)",
+    )
+    return parser.parse_args(args)
+
+
+def detect_default_branch(repo: git.Repo) -> str:
+    """Detect the default branch of the repository."""
+    for branch in ["main", "master", "develop"]:
+        try:
+            repo.git.rev_parse("--verify", branch)
+            return branch
+        except git.exc.GitCommandError:
+            continue
+    raise Exception("Could not detect default branch")
+
+
+def get_vulnerability_data() -> Optional[str]:
+    """Get vulnerability scan data using trivy."""
+    try:
+        result = subprocess.run(
+            ["trivy", "fs", "--quiet", "--severity", "HIGH,CRITICAL", "."],
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout if result.stdout.strip() else None
+    except FileNotFoundError:
+        print("Warning: trivy not found. Skipping vulnerability scan.")
+        return None
+
+
+def generate_description(
+    diff: str,
+    vuln_data: Optional[str],
+    provider: str,
+    model: str,
+    system_prompt: str,
+    verbose: bool = False,
+    prompt_manager: Optional[PromptManager] = None,
+) -> str:
+    """Generate description using the specified provider."""
+    # Get the user prompt from the prompt manager
+    if prompt_manager is None:
+        prompt_manager = PromptManager()
+    user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
+
+    if provider == "anthropic":
+        return generate_with_anthropic(user_prompt, vuln_data, model, system_prompt, verbose)
+    if provider == "azure":
+        return generate_with_azure_openai(user_prompt, vuln_data, model, system_prompt, verbose)
+    if provider == "openai":
+        return generate_with_openai(user_prompt, vuln_data, model, system_prompt, verbose)
+    raise ValueError(f"Unknown provider: {provider}")
+
+
 def main(args=None):
     """Main entry point for AIMR"""
-    parser = argparse.ArgumentParser(
-        prog="aimr",
-        description="Generates a Merge Request Description from Git diffs using AI models.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-examples:
-  # Generate MR description for current branch
-  aimr
-
-  # Use Azure OpenAI (default)
-  aimr -m azure/o1-mini
-
-  # Compare with target branch using specific model
-  aimr -t main -m claude-3-sonnet
-
-  # Include vulnerability comparison
-  aimr -t main --vulns
-  # Create GitHub PR with description
-  gh pr create -b "$(aimr -s)" -t "your title"
-  gh pr create -b "$(aimr -s)" --fill
-
-""",
-    )
-    parser.add_argument(
-        "path",
-        nargs="?",
-        default=".",
-        help="The directory path of the Git repository (defaults to current directory).",
-    )
-    parser.add_argument(
-        "--target",
-        "-t",
-        default=None,
-        help="The target branch to merge into (defaults to showing working tree changes).",
-    )
-    parser.add_argument(
-        "--model",
-        "-m",
-        default=None,
-        help="""AI model to use. Available options:
-Azure OpenAI:
-  - azure/o1-mini (default)
-  - azure/gpt-4o
-  - azure/gpt-4o-mini
-  - azure/gpt-4 (alias for gpt-4o)
-OpenAI:
-  - gpt-4
-  - gpt-4-turbo
-  - gpt-3.5-turbo
-Anthropic:
-  - claude-3.5-sonnet (latest)
-  - claude-3.5-haiku (latest)
-  - claude-3-opus (latest)
-  - claude-3-sonnet
-  - claude-3-haiku
-  - claude-3 (alias for claude-3-opus)
-Defaults to azure/o1-mini""",
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
-    parser.add_argument(
-        "--silent",
-        "-s",
-        action="store_true",
-        help="Silent mode - only output the model response (useful with glab mr create -d)",
-    )
-    parser.add_argument(
-        "--vulns",
-        action="store_true",
-        help="Include vulnerability comparison between branches using trivy",
-    )
-    args = parser.parse_args(args)
-
-    # Detect provider and normalize model name
-    provider, model = detect_provider_and_model(args.model)
+    args = parse_args(args)
 
     try:
-        repo = git.Repo(args.path)
+        repo = git.Repo(search_parent_directories=True)
     except git.exc.InvalidGitRepositoryError:
-        print(f"Error: Directory '{args.path}' is not a valid Git repository.", file=sys.stderr)
+        print("Error: Directory is not a valid Git repository.", file=sys.stderr)
         sys.exit(1)
 
-    try:
-        current_branch = repo.active_branch.name
-    except TypeError:
-        current_branch = repo.head.commit.hexsha
+    provider, model = detect_provider_and_model(args.model)
+    prompt_manager = PromptManager(args.prompt)
 
-    # Check if we have any working tree changes
-    has_staged_changes = repo.index.diff(repo.head.commit)
-    has_unstaged_changes = repo.index.diff(None)
-    has_untracked = repo.untracked_files
-    has_changes = bool(has_staged_changes or has_unstaged_changes or has_untracked)
-
-    # Determine if we should do branch comparison or working tree changes
-    if args.target == "-":
-        # Case 1: Explicit request for working tree changes
+    # Get the diff based on the state
+    diff = ""
+    if args.target == "-" or repo.is_dirty():
+        # Show working tree changes
         if not args.silent:
-            print(f"{BLUE}Showing working tree changes as requested...{ENDC}", file=sys.stderr)
-        # Include both staged and unstaged changes
+            print(f"{BLUE}Showing working tree changes...{ENDC}", file=sys.stderr)
         diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
-        target_branch = None
-    elif args.target:
-        # Case 2: Explicit target branch comparison
-        target_branch = args.target
-        local_branches = [h.name for h in repo.heads]
-
-        # Try common default branch names if the specified branch doesn't exist
-        if target_branch not in local_branches:
-            # Prioritize 'main' as the first default branch
-            if "main" in local_branches:
-                if not args.silent:
-                    print(
-                        f"{YELLOW}Warning: Target branch '{target_branch}' not found, "
-                        f"using '{'main'}' instead.{ENDC}",
-                        file=sys.stderr,
-                    )
-                target_branch = "main"
-            else:
-                # Fall back to other common branch names
-                default_branches = ["master", "develop"]
-                for branch in default_branches:
-                    if branch in local_branches:
-                        if not args.silent:
-                            print(
-                                f"{BLUE}Warning: Target branch '{target_branch}' not found, "
-                                f"using '{branch}' instead.{ENDC}",
-                                file=sys.stderr,
-                            )
-                        target_branch = branch
-                        break
-                else:
-                    print(
-                        f"{RED}Error: Target branch '{target_branch}' "
-                        f"does not exist in the repository.{ENDC}",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
-
-        if not args.silent:
-            print(f"{BLUE}Comparing current branch with {target_branch}...{ENDC}", file=sys.stderr)
-            if has_staged_changes:
-                print(f"{BLUE}Including staged changes{ENDC}", file=sys.stderr)
-            if has_unstaged_changes or has_untracked:
-                print(f"{BLUE}Including unstaged changes{ENDC}", file=sys.stderr)
-        else:
-            print(
-                f"{BLUE}No working tree changes, " f"comparing against '{target_branch}'...{ENDC}",
-                file=sys.stderr,
-            )
-        # Always perform the diff, regardless of silent mode
-        diff = repo.git.diff(f"{target_branch}...{current_branch}")
     else:
-        # Case 3: Auto-detect what to compare
-        if has_changes:
-            # Case 3a: Show working tree changes if we have any
+        # Compare with target branch
+        target = args.target
+        if not target:
+            # Try to find default branch
+            for branch in ["main", "master", "develop"]:
+                if branch in [h.name for h in repo.heads]:
+                    target = branch
+                    break
+
+        if target:
             if not args.silent:
-                print(
-                    f"{BLUE}Detected working tree changes, "
-                    f"showing diff of current changes...{ENDC}",
-                    file=sys.stderr,
-                )
-                if has_staged_changes:
-                    print(f"{BLUE}Including staged changes{ENDC}", file=sys.stderr)
-                if has_unstaged_changes or has_untracked:
-                    print(f"{BLUE}Including unstaged changes{ENDC}", file=sys.stderr)
-            # Include both staged and unstaged changes
-            diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
-            target_branch = None
+                print(f"{BLUE}Comparing with {target}...{ENDC}", file=sys.stderr)
+            diff = repo.git.diff(f"{target}...{repo.active_branch.name}")
         else:
-            # Case 3b: No working tree changes, try to compare with default branch
-            local_branches = [h.name for h in repo.heads]
-
-            # Try to find a suitable default branch to compare against
-            if "main" in local_branches and current_branch != "main":
-                target_branch = "main"
-            else:
-                for branch in ["master", "develop"]:
-                    if branch in local_branches and branch != current_branch:
-                        target_branch = branch
-                        break
-
-            if target_branch:
-                if not args.silent:
-                    print(
-                        f"{BLUE}No working tree changes, "
-                        f"comparing against '{target_branch}'...{ENDC}",
-                        file=sys.stderr,
-                    )
-                diff = repo.git.diff(f"{target_branch}...{current_branch}")
-            else:
-                if not args.silent:
-                    print(
-                        f"{YELLOW}No suitable default branch found to compare against.{ENDC}",
-                        file=sys.stderr,
-                    )
-                diff = ""
+            print(f"{YELLOW}No suitable target branch found.{ENDC}", file=sys.stderr)
+            sys.exit(1)
 
     if not diff.strip():
         print("No changes found in the Git repository.", file=sys.stderr)
         sys.exit(0)
 
-    # Only show these in non-silent mode
+    # Get vulnerability data if requested
+    vuln_data = None
+    if args.vulns:
+        if not args.silent:
+            print(f"{BLUE}Running vulnerability scan...{ENDC}", file=sys.stderr)
+        vuln_data = run_trivy_scan(repo.working_dir, args.silent, False)
+
+    # Generate the description
     if not args.silent:
-        print_header("Repository Information")
-        print(f"Repository: {os.path.abspath(args.path)}")
-        print(f"Current branch: {current_branch}")
-        if (
-            target_branch
-        ):  # Show target branch whenever we have one, not just when explicitly specified
-            print(f"Target branch: {target_branch}")
-            print(f"Comparing: {current_branch} → {target_branch}")
-        elif has_changes:
-            print("Changes: Working tree changes")
-
-        # Add token count information
-        user_prompt = generate_user_prompt(diff)
-        print_header("\nToken Information")
-        print_token_info(user_prompt, SYSTEM_PROMPT, args.verbose)
-
-        print_header("\nProcessing Merge Request Description")
+        print_header("\nGenerating Description")
         print(f"Using {provider} ({model})...")
-    else:
-        user_prompt = generate_user_prompt(diff)
 
     try:
-        if provider == "openai":
-            merge_request = generate_with_openai(user_prompt, SYSTEM_PROMPT, model)
-        elif provider == "azure":
-            merge_request = generate_with_azure_openai(
-                user_prompt, SYSTEM_PROMPT, model, args.verbose and not args.silent
-            )
-        else:  # anthropic
-            merge_request = generate_with_anthropic(user_prompt, SYSTEM_PROMPT, model)
+        # In debug mode, show the prompts that would be sent
+        if args.debug:
+            # Get the prompts first
+            system_prompt = prompt_manager.get_system_prompt()
+            user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
 
-        # Add vulnerability scanning
-        if args.vulns:
-            if not args.silent:
-                print("\nRunning vulnerability scans...")
-
-            if args.target and args.target != "-":
-                # Branch comparison vulnerability scan
-                import shutil
-                import tempfile
-
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    # Copy current repository to temp directory
-                    repo_path = os.path.join(temp_dir, "repo")
-                    shutil.copytree(args.path, repo_path, dirs_exist_ok=True)
-
-                    # Initialize repo and checkout target branch
-                    temp_repo = git.Repo(repo_path)
-                    temp_repo.git.checkout(args.target)
-
-                    # Run vulnerability scans with proper dependency resolution
-                    if not args.silent:
-                        print(f"\nScanning target branch ({args.target})...")
-                    target_scan = run_trivy_scan(repo_path, args.silent, args.verbose)
-
-                    if not args.silent:
-                        print(f"\nScanning current branch ({current_branch})...")
-                    current_scan = run_trivy_scan(args.path, args.silent, args.verbose)
-
-                    # Generate vulnerability comparison and analysis
-                    vuln_report, vuln_analysis = compare_vulnerabilities(current_scan, target_scan)
-            else:
-                # Working tree vulnerability scan
-                if not args.silent:
-                    print("\nScanning current state...")
-                current_scan = run_trivy_scan(args.path, args.silent, args.verbose)
-
-                # Generate vulnerability report for current state only
-                report = ["## Vulnerability Scan\n"]
-                analysis_data = ["### Security Analysis\n"]
-
-                vulns = []
-                for result in current_scan.get("Results", []):
-                    target = result.get("Target", "")
-                    type = result.get("Type", "")
-                    for vuln in result.get("Vulnerabilities", []):
-                        vulns.append(
-                            {
-                                "id": vuln.get("VulnerabilityID"),
-                                "pkg": vuln.get("PkgName"),
-                                "version": vuln.get("InstalledVersion"),
-                                "severity": vuln.get("Severity", "UNKNOWN"),
-                                "description": vuln.get("Description"),
-                                "fix_version": vuln.get("FixedVersion"),
-                                "target": target,
-                                "type": type,
-                                "title": vuln.get("Title"),
-                                "references": vuln.get("References", []),
-                            }
-                        )
-
-                # Group by severity
-                severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "UNKNOWN": 4}
-                vulns_by_severity = {}
-                for vuln in vulns:
-                    sev = vuln["severity"]
-                    if sev not in vulns_by_severity:
-                        vulns_by_severity[sev] = []
-                    vulns_by_severity[sev].append(vuln)
-
-                # Generate report
-                if vulns:
-                    for severity in sorted(
-                        vulns_by_severity.keys(), key=lambda x: severity_order.get(x, 999)
-                    ):
-                        report.append(f"\n### {severity} Severity\n")
-                        for vuln in sorted(vulns_by_severity[severity], key=lambda x: x["id"]):
-                            vuln_line = (
-                                f"- {vuln['id']} in {vuln['pkg']} "
-                                f"{vuln['version']} ({vuln['target']})"
-                            )
-                            report.append(vuln_line)
-
-                            # Add detailed analysis
-                            analysis_data.append(f"\n{severity} Severity Details:")
-                            for vuln in sorted(vulns_by_severity[severity], key=lambda x: x["id"]):
-                                analysis_data.append(f"\n- {vuln['id']} ({vuln['type']}):")
-                                pkg_info = f"  - Package: {vuln['pkg']} {vuln['version']}"
-                                analysis_data.append(pkg_info)
-                                analysis_data.append(f"  - In: {vuln['target']}")
-                                analysis_data.append(f"  - Title: {vuln['title']}")
-                                analysis_data.append(f"  - Description: {vuln['description']}")
-                                if vuln["fix_version"]:
-                                    fix_info = (
-                                        f"  - Fix available in version: " f"{vuln['fix_version']}"
-                                    )
-                                    analysis_data.append(fix_info)
-                                if vuln["references"]:
-                                    analysis_data.append("  - References:")
-                                    # Limit to first 3 references
-                                    for ref in vuln["references"][:3]:
-                                        analysis_data.append(f"    * {ref}")
-                else:
-                    report.append("\nNo vulnerabilities detected.")
-                    analysis_data.append("\nNo security issues to analyze.")
-
-                vuln_report = "\n".join(report)
-                vuln_analysis = "\n".join(analysis_data)
-
-            # Update the user prompt with vulnerability analysis
-            user_prompt = generate_user_prompt(diff, vuln_analysis)
-
-            if not args.silent:
-                print("\nGenerating merge request with vulnerability analysis...")
-
-            # Generate new merge request with vulnerability context
-            if provider == "openai":
-                merge_request = generate_with_openai(user_prompt, SYSTEM_PROMPT, model)
-            elif provider == "azure":
-                merge_request = generate_with_azure_openai(
-                    user_prompt, SYSTEM_PROMPT, model, args.verbose and not args.silent
+            # Prepare the API parameters
+            if provider == "azure" and model == "o1-mini":
+                combined_prompt = (
+                    f"System Instructions:\n{system_prompt}\n\n" f"User Request:\n{user_prompt}"
                 )
-            else:  # anthropic
-                merge_request = generate_with_anthropic(user_prompt, SYSTEM_PROMPT, model)
+                messages = [{"role": "user", "content": combined_prompt}]
+                params = {
+                    "model": model,
+                    "messages": messages,
+                    "max_completion_tokens": 1000,
+                }
+            elif provider == "anthropic":
+                params = {
+                    "model": model,
+                    "system": system_prompt,
+                    "messages": [{"role": "user", "content": user_prompt}],
+                    "max_tokens": 1000,
+                    "temperature": 0.2,
+                }
+            else:
+                params = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "max_tokens": 1000,
+                    "temperature": 0.2,
+                }
 
-            # Append the vulnerability report
-            merge_request = f"{merge_request}\n\n{vuln_report}"
+            # Print debug information in a structured way
+            print_header("Debug Information")
 
-        if not args.silent:
-            # Print separator before merge request
-            print_separator()
-            if args.verbose:
-                print(f"\n{BOLD}### Merge Request ###\n{ENDC}")
+            print_header("API Call Structure", level=2)
+            print(f"Provider: {provider}")
+            print(f"Model: {model}")
+            print(
+                f"Endpoint: {os.getenv('AZURE_OPENAI_ENDPOINT', 'Not Set')}"
+                if provider == "azure"
+                else ""
+            )
+            print("\nParameters:")
+            print("─" * 40)
+            print(json.dumps({k: v for k, v in params.items() if k != "messages"}, indent=2))
+            print("\nMessages:")
+            print("─" * 40)
+            for msg in params["messages"]:
+                print(f"\n{msg['role'].upper()} MESSAGE:")
+                print(msg["content"])
+            print()
+            sys.exit(0)
 
-        # Always print the merge request
-        print(merge_request)
+        # Generate the description
+        description = generate_description(
+            diff,
+            vuln_data,
+            provider,
+            model,
+            prompt_manager.get_system_prompt(),
+            args.verbose,  # Pass verbose flag instead of debug
+            prompt_manager,  # Pass the prompt manager
+        )
 
-        if not args.silent:
-            # Print separator after merge request
-            print_separator()
-
-            # Print response token count
-            print_header("\nResponse Information")
-            print(f"Response tokens: {count_tokens(merge_request, 'gpt-4')}")
+        if args.verbose:
+            print("\nAPI Response:")
+            print("─" * 40)
+        print(description)
 
     except Exception as e:
         print(f"{RED}Error: {provider.title()} API - {e}{ENDC}", file=sys.stderr)

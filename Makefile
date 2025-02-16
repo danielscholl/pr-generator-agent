@@ -45,9 +45,39 @@ clean:
 build: clean
 	. $(VENV)/bin/activate && python -m build
 
+<<<<<<< HEAD
+# GitHub PR target
+# Usage: make pr title="Your PR title"
+pr:
+	@if [ -z "$(title)" ]; then \
+		echo "Error: title parameter is required. Usage: make pr title=\"Your PR title\""; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: You have uncommitted changes. Please commit or stash them first."; \
+		exit 1; \
+	fi
+	@BRANCH=$$(git branch --show-current); \
+	if ! git show-ref --verify --quiet refs/remotes/origin/$$BRANCH; then \
+		if git ls-remote --exit-code --heads origin $$BRANCH >/dev/null 2>&1; then \
+			git branch --set-upstream-to=origin/$$BRANCH $$BRANCH 2>/dev/null || true; \
+		else \
+			echo "Error: Branch '$$BRANCH' does not exist on remote 'origin'."; \
+			echo "Please push the branch with: git push --set-upstream origin $$BRANCH"; \
+			exit 1; \
+		fi; \
+	fi
+	@if [ -n "$$(git log @{u}.. 2>/dev/null)" ]; then \
+		echo "Error: You have unpushed commits. Please push them first: git push"; \
+		exit 1; \
+	fi
+	. $(VENV)/bin/activate && aimr -s --vulns -m azure/o1-mini -p meta | gh pr create --body-file - -t "$(title)"
+	@echo "\nPull request created!"
+=======
 # GitHub PR / GitLab MR target
 # Usage: make mr
 mr:
 	. $(VENV)/bin/activate && aimr -s --vulns | gh pr create --fill --body-file - -t "$(shell git branch --show-current)"
 	@echo "\nMerge request created!"
+>>>>>>> main
 	@echo "Next step: Wait for review and address any feedback" 
