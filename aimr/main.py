@@ -140,7 +140,7 @@ def detect_provider_and_model(model_arg: Optional[str]) -> Tuple[str, str]:
     Returns a tuple of (provider, model_name)
     """
     if not model_arg:
-        return "azure", "o1-mini"  # Default to Azure OpenAI's o1-mini deployment
+        return "anthropic", "claude-3-sonnet-20240229"  # Default to Claude 3 Sonnet
 
     model_lower = model_arg.lower()
 
