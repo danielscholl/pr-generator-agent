@@ -4,6 +4,7 @@
     ".": {
       "release-type": "python",
       "package-name": "aipr",
+      "path": ".",
       "draft": false,
       "prerelease": false,
       "bump-minor-pre-major": true,
