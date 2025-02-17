@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.2...v1.0.0) (2025-02-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* Promoting to first major release 1.0.0. This marks the first stable release of the AIPR tool.
+
+### Features
+
+* promote to version 1.0.0 ([ae85038](https://github.com/danielscholl/pr-generator-agent/commit/ae850384909425efe311c770e3a1cc087dbdd059))
+
 ## [0.1.2](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.1...v0.1.2) (2025-02-17)
 
 
