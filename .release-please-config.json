@@ -28,10 +28,7 @@
           "version-template": "__version__ = \"${version}\"",
           "change-type": "all"
         }
-      ],
-      "versioning": {
-        "python": true
-      }
+      ]
     }
   }
 } 
