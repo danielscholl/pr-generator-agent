@@ -24,7 +24,7 @@
       "extra-files": [
         {
           "path": "aipr/__init__.py",
-          "type": "python",
+          "type": "simple",
           "version-template": "__version__ = \"${version}\"",
           "change-type": "all"
         }
