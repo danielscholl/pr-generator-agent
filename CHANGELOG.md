@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.1...v0.1.2) (2025-02-17)
+
+
+### Bug Fixes
+
+* add explicit path to release-please config ([6343f66](https://github.com/danielscholl/pr-generator-agent/commit/6343f66db39c196e97d114e2a7e82eb7b7c44579))
+* correct release-please versioning configuration ([58b6718](https://github.com/danielscholl/pr-generator-agent/commit/58b6718c299c318b402c071659fb646675e12537))
+* improve release-please version management configuration ([d5a62c9](https://github.com/danielscholl/pr-generator-agent/commit/d5a62c9a98d1cc1f6999c37162955b44edaa735c))
+* update release-please config to use toml type and path ([939a94f](https://github.com/danielscholl/pr-generator-agent/commit/939a94ff3a819e919fa4421d805f73f4945857e9))
+* update release-please configuration for better version management ([4de1559](https://github.com/danielscholl/pr-generator-agent/commit/4de1559a73153a739423a74ab353828429553524))
+* update release-please configuration for better version management ([71b1277](https://github.com/danielscholl/pr-generator-agent/commit/71b1277a71d238fc804b7616a70aabab05a87816))
+* update release-please extra-files type to simple ([1e71c6e](https://github.com/danielscholl/pr-generator-agent/commit/1e71c6eb1cdd016c468b737bee09efc93440cfb4))
+* update release-please setup for single package ([2e45307](https://github.com/danielscholl/pr-generator-agent/commit/2e4530796519f008b1a9150b856e0abd2342f728))
+
 ## [0.1.1](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.0...v0.1.1) (2025-02-17)
 
 
