@@ -20,7 +20,11 @@
         {"type": "ci", "section": "Continuous Integration", "hidden": true}
       ],
       "extra-files": [
-        "aipr/__init__.py"
+        {
+          "path": "aipr/__init__.py",
+          "type": "python",
+          "version-template": "__version__ = \"${version}\""
+        }
       ]
     }
   },
