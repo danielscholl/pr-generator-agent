@@ -4,10 +4,10 @@ Automatically analyze git diffs and vulnerabilities to generate comprehensive, w
 
 ```bash
 # Install with pipx (recommended)
-pipx install aipr
+pipx install pr-generator-agent
 
 # Or with pip
-pip install aipr
+pip install pr-generator-agent
 
 # Set the environment variable for the API key
 export ANTHROPIC_API_KEY="your-api-key"

@@ -16,7 +16,24 @@ We welcome pull requests from everyone! Whether it's a bug fix, new feature, or 
    - GitHub account
    - GitHub CLI (`gh`) - https://cli.github.com
 
-2. **Development Commands**
+2. **Package and Command Names**
+   - PyPI Package Name: `pr-generator-agent` (for installation)
+   - Module Name: `aipr` (for imports)
+   - Command Name: `aipr` (CLI tool)
+   
+   Example usage:
+   ```bash
+   # Installing the package
+   pip install pr-generator-agent
+   
+   # Using the CLI tool
+   aipr
+   
+   # Importing in Python
+   from aipr import ...
+   ```
+
+3. **Development Commands**
 ```bash
 # Key make targets
 make install  # Sets up the virtualenv and installs dependencies
@@ -26,12 +43,12 @@ make pr       # Creates a pull request via gh/glab
 make clean    # Removes build artifacts & venv
 ```
 
-3. **Code Style**
+4. **Code Style**
 - We use Black for code formatting and Flake8 for linting
 - All code must pass `make check` before being merged
 - GitHub Actions will automatically verify these checks on your PR
 
-4. **Commit Conventions**
+5. **Commit Conventions**
 We use [Conventional Commits](https://www.conventionalcommits.org/) to automate versioning and changelog generation. Your commit messages should follow this format:
 ```
 type(optional-scope): description
@@ -60,7 +77,7 @@ git commit -m "feat!: switch to new API version"
 git commit -m "docs: update installation instructions"
 ```
 
-5. **Initial Setup**
+6. **Initial Setup**
 ```bash
 # Verify GitHub CLI is installed and authenticated
 gh auth status
@@ -79,7 +96,7 @@ make install
 source .venv/bin/activate 
 ```
 
-6. **Making Changes**
+7. **Making Changes**
 ```bash
 # Ensure your fork is up to date
 git fetch upstream
