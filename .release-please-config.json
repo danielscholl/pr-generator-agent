@@ -1,35 +1,26 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "packages": {
-    ".": {
-      "release-type": "python",
-      "package-name": "aipr",
-      "path": ".",
-      "draft": false,
-      "prerelease": false,
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "version-file": "aipr/__init__.py",
-      "extra-files": [
-        {
-          "type": "toml",
-          "path": "pyproject.toml",
-          "tomlpath": "project.version"
-        }
-      ],
-      "changelog-sections": [
-        {"type": "feat", "section": "Features", "hidden": false},
-        {"type": "fix", "section": "Bug Fixes", "hidden": false},
-        {"type": "perf", "section": "Performance Improvements", "hidden": false},
-        {"type": "revert", "section": "Reverts", "hidden": false},
-        {"type": "docs", "section": "Documentation", "hidden": false},
-        {"type": "style", "section": "Styles", "hidden": true},
-        {"type": "chore", "section": "Miscellaneous Chores", "hidden": true},
-        {"type": "refactor", "section": "Code Refactoring", "hidden": false},
-        {"type": "test", "section": "Tests", "hidden": true},
-        {"type": "build", "section": "Build System", "hidden": true},
-        {"type": "ci", "section": "Continuous Integration", "hidden": true}
-      ]
+  "release-type": "python",
+  "package-name": "pr-generator-agent",
+  "version-file": "aipr/__init__.py",
+  "extra-files": [
+    {
+      "type": "toml",
+      "path": "pyproject.toml",
+      "tomlpath": "project.version"
     }
-  }
+  ],
+  "changelog-sections": [
+    {"type": "feat", "section": "Features", "hidden": false},
+    {"type": "fix", "section": "Bug Fixes", "hidden": false},
+    {"type": "perf", "section": "Performance Improvements", "hidden": false},
+    {"type": "revert", "section": "Reverts", "hidden": false},
+    {"type": "docs", "section": "Documentation", "hidden": false},
+    {"type": "style", "section": "Styles", "hidden": true},
+    {"type": "chore", "section": "Miscellaneous Chores", "hidden": true},
+    {"type": "refactor", "section": "Code Refactoring", "hidden": false},
+    {"type": "test", "section": "Tests", "hidden": true},
+    {"type": "build", "section": "Build System", "hidden": true},
+    {"type": "ci", "section": "Continuous Integration", "hidden": true}
+  ]
 } 
