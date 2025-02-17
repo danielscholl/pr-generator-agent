@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.0...v0.1.1) (2025-02-17)
+
+
+### Bug Fixes
+
+* project file ([040d592](https://github.com/danielscholl/pr-generator-agent/commit/040d5920db5d082cb5f7de23ff5939cb70608313))
+* update package name to pr-generator-agent and align documentation ([a8605ba](https://github.com/danielscholl/pr-generator-agent/commit/a8605ba3bd1b2cb7ac21c315f5c19a119f990f8c))
+
 ## 0.1.0 (2025-02-16)
 
 
