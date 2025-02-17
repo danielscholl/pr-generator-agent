@@ -32,6 +32,9 @@ dev = [
 [project.scripts]
 aipr = "aipr.main:main"
 
+[tool.hatch.build.targets.wheel]
+packages = ["aipr"]
+
 [tool.black]
 line-length = 100
 target-version = ['py310']
