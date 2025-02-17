@@ -8,6 +8,14 @@
       "prerelease": false,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
+      "version-file": "aipr/__init__.py",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "pyproject.toml",
+          "tomlpath": "project.version"
+        }
+      ],
       "changelog-sections": [
         {"type": "feat", "section": "Features", "hidden": false},
         {"type": "fix", "section": "Bug Fixes", "hidden": false},
@@ -20,14 +28,6 @@
         {"type": "test", "section": "Tests", "hidden": true},
         {"type": "build", "section": "Build System", "hidden": true},
         {"type": "ci", "section": "Continuous Integration", "hidden": true}
-      ],
-      "extra-files": [
-        {
-          "path": "aipr/__init__.py",
-          "type": "simple",
-          "version-template": "__version__ = \"${version}\"",
-          "change-type": "all"
-        }
       ]
     }
   }
