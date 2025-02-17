@@ -2,14 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "python",
   "package-name": "pr-generator-agent",
-  "version-file": "aipr/__init__.py",
-  "extra-files": [
-    {
-      "type": "toml",
-      "path": "pyproject.toml",
-      "tomlpath": "project.version"
-    }
-  ],
   "changelog-sections": [
     {"type": "feat", "section": "Features", "hidden": false},
     {"type": "fix", "section": "Bug Fixes", "hidden": false},
