@@ -1,7 +1,9 @@
 {
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "packages": {
     ".": {
       "release-type": "python",
+      "package-name": "aipr",
       "draft": false,
       "prerelease": false,
       "bump-minor-pre-major": true,
@@ -31,6 +33,5 @@
         "python": true
       }
     }
-  },
-  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+  }
 } 
