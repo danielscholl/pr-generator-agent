@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aipr"
+name = "pr-generator-agent"
 version = "0.1.0"
 description = "AI-powered Pull Request Description Generator"
 authors = [
