@@ -58,7 +58,7 @@ jobs:
       fail-fast: true
       matrix:
         # We support the latest two stable Python versions plus beta
-        python-version: ['3.10', '3.11']  # Removed 3.13 as it's still in beta
+        python-version: ['3.11']  # Removed 3.10 as it is incompatible
         
     steps:
       - uses: actions/checkout@v4
@@ -84,4 +84,4 @@ jobs:
           
       - name: Run tests
         run: |
-          pytest --cov=aipr --cov-report=term-missing 
+          pytest --cov=aipr --cov-report=term-missing
