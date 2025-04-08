@@ -2,6 +2,7 @@
 
 Automatically analyze git diffs and vulnerabilities to generate comprehensive, well-structured pull request descriptions. By intelligently detecting changes, performing security scans, and leveraging state-of-the-art AI models, AIPR helps teams save time while maintaining high-quality, consistent pull request descriptions.
 
+
 ```bash
 # Install with pipx (recommended)
 pipx install pr-generator-agent
@@ -71,6 +72,9 @@ Security Analysis:
 #### OpenAI
 - `OPENAI_API_KEY`: OpenAI API key
 
+#### Google Gemini
+- `GEMINI_API_KEY`: Google Gemini API key
+
 ## Usage
 
 ### Command Options
@@ -106,6 +110,10 @@ Choose from multiple AI providers:
 | | `gpt-4-turbo` | |
 | | `gpt-3.5-turbo` | |
 | | `openai` | alias for `gpt-4o` |
+| Google Gemini | `gemini-1.5-pro` | default for Gemini |
+| | `gemini-1.5-flash` | |
+| | `gemini-2.5-pro-experimental` | maps to `gemini-2.5-pro-exp-03-25` |
+| | `gemini` | alias for `gemini-2.5-pro-experimental` |
 
 ## Custom Prompts
 

@@ -35,6 +35,11 @@ def test_detect_provider_and_model_defaults():
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
         assert model == "claude-3-sonnet-20240229"
+    
+    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True):
+        provider, model = detect_provider_and_model(None)
+        assert provider == "gemini"
+        assert model == "gemini-2.5-pro-experimental"
 
 
 def test_detect_provider_and_model_aliases():
@@ -44,6 +49,7 @@ def test_detect_provider_and_model_aliases():
         ("claude", ("anthropic", "claude-3-sonnet-20240229")),
         ("azure", ("azure", "gpt-4o-mini")),
         ("openai", ("openai", "gpt-4o")),
+        ("gemini", ("gemini", "gemini-2.5-pro-experimental")),
         # Azure model aliases
         ("azure/gpt-4", ("azure", "gpt-4o")),
         ("azure/gpt-4o", ("azure", "gpt-4o")),
@@ -60,6 +66,10 @@ def test_detect_provider_and_model_aliases():
         ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
         ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
         ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
+        # Gemini model aliases
+        ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
+        ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
+        ("gemini-2.5-pro-experimental", ("gemini", "gemini-2.5-pro-exp-03-25")),
     ]
 
     for input_model, expected in test_cases:
@@ -86,6 +96,19 @@ def test_detect_provider_and_model_openai():
         ("gpt4", ("openai", "gpt-4")),
         ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
         ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
+    ]
+    for input_model, expected in test_cases:
+        provider, model = detect_provider_and_model(input_model)
+        assert (provider, model) == expected
+
+
+def test_detect_provider_and_model_gemini():
+    """Test Gemini model detection"""
+    test_cases = [
+        ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
+        ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
+        ("gemini-2.5-pro-experimental", ("gemini", "gemini-2.5-pro-exp-03-25")),
+        ("gemini", ("gemini", "gemini-2.5-pro-experimental")),  # Alias test
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
