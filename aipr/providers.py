@@ -195,3 +195,66 @@ def generate_with_openai(
         if verbose:
             print(f"\nAPI Error: {str(e)}")
         raise ValueError(f"OpenAI API error: {str(e)}")
+
+
+def generate_with_gemini(
+    diff: str,
+    vuln_data: Optional[Dict[str, Any]],
+    model: str,
+    system_prompt: str,
+    verbose: bool = False,
+) -> str:
+    """Generate description using Google's Gemini."""
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        raise ValueError(
+            "Google Generative AI library not installed. "
+            "Please install with: pip install google-generativeai"
+        )
+
+    if verbose:
+        print("\nInitializing Gemini client...")
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Missing Gemini API key. Please set GEMINI_API_KEY environment variable.")
+
+    genai.configure(api_key=api_key)
+
+    # Create messages in the format Gemini expects
+    messages = [
+        {"role": "user", "parts": [{"text": f"System instructions: {system_prompt}\n\n{diff}"}]},
+    ]
+
+    if verbose:
+        print("\nSending request to Gemini API:")
+        print(f"  Model: {model}")
+        print("  Parameters:", json.dumps({"temperature": 0.2}, indent=2))
+        print("\nRequest Messages:")
+        for msg in messages:
+            print(f"\n{msg['role'].upper()} MESSAGE:")
+            content = msg["parts"][0]["text"]
+            if len(content) > 500:
+                print(content[:500] + "...")
+            else:
+                print(content)
+        print("\nMaking API call...")
+
+    try:
+        model_instance = genai.GenerativeModel(model)
+        response = model_instance.generate_content(
+            messages,
+            generation_config={"temperature": 0.2},
+        )
+
+        if verbose:
+            print("\nRaw API Response:")
+            print(f"  Model: {model}")
+            print("\nResponse Content:")
+
+        return response.text
+    except Exception as e:
+        if verbose:
+            print(f"\nAPI Error: {str(e)}")
+        raise ValueError(f"Gemini API error: {str(e)}")

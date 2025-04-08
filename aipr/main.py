@@ -9,7 +9,12 @@ import git
 import tiktoken
 
 from .prompts import InvalidPromptError, PromptManager
-from .providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
+from .providers import (
+    generate_with_anthropic,
+    generate_with_azure_openai,
+    generate_with_gemini,
+    generate_with_openai,
+)
 
 # ANSI color codes
 BLUE = "\033[94m"
@@ -30,6 +35,8 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
             return "azure", "gpt-4o-mini"
         if model == "openai":
             return "openai", "gpt-4o"
+        if model == "gemini":
+            return "gemini", "gemini-2.5-pro-experimental"
 
         # Handle Azure models
         if model.startswith("azure/"):
@@ -42,6 +49,15 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
                 "gpt-4": "gpt-4o",  # Alias for gpt-4o
             }
             return "azure", azure_models.get(model_name, model_name)
+
+        # Handle Gemini models
+        if model.startswith("gemini"):
+            gemini_models = {
+                "gemini-1.5-pro": "gemini-1.5-pro",
+                "gemini-1.5-flash": "gemini-1.5-flash",
+                "gemini-2.5-pro-experimental": "gemini-2.5-pro-exp-03-25",
+            }
+            return "gemini", gemini_models.get(model, model)
 
         # Handle OpenAI models
         if model.startswith("gpt") or model == "gpt4":
@@ -80,9 +96,12 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         return "azure", "gpt-4"
     if os.getenv("OPENAI_API_KEY"):
         return "openai", "gpt-4"
+    if os.getenv("GEMINI_API_KEY"):
+        return "gemini", "gemini-2.5-pro-experimental"
 
     raise Exception(
-        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, or OPENAI_API_KEY"
+        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, "
+        "OPENAI_API_KEY, or GEMINI_API_KEY"
     )
 
 
@@ -396,10 +415,11 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {YELLOW}claude-3.5-sonnet{ENDC} (default)    Anthropic's Claude 3.5 Sonnet
+  {GREEN}claude-3.5-sonnet{ENDC} (default)    Anthropic's Claude 3.5 Sonnet
   {YELLOW}azure/o1-mini{ENDC}                  Azure OpenAI o1-mini
   {YELLOW}azure/gpt-4o{ENDC}                   Azure OpenAI GPT-4
-  {GREEN}gpt-4{ENDC}                          OpenAI GPT-4
+  {YELLOW}gpt-4{ENDC}                          OpenAI GPT-4
+  {YELLOW}gemini-2.5-pro-experimental{ENDC}    Google's Gemini 2.5 Pro
 
 prompt templates:
   {BLUE}meta{ENDC}                          Default XML prompt template for merge requests""",
@@ -482,6 +502,8 @@ def generate_description(
         return generate_with_azure_openai(user_prompt, vuln_data, model, system_prompt, verbose)
     if provider == "openai":
         return generate_with_openai(user_prompt, vuln_data, model, system_prompt, verbose)
+    if provider == "gemini":
+        return generate_with_gemini(user_prompt, vuln_data, model, system_prompt, verbose)
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -569,6 +591,19 @@ def main(args=None):
                     "messages": [{"role": "user", "content": user_prompt}],
                     "max_tokens": 1000,
                     "temperature": 0.2,
+                }
+            elif provider == "gemini":
+                # Structure for Gemini
+                gemini_text = "System instructions: " + system_prompt + "\n\n" + user_prompt
+                params = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "parts": [{"text": gemini_text}],
+                        }
+                    ],
+                    "generation_config": {"temperature": 0.2},
                 }
             else:
                 params = {
