@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.0.0...v1.1.0) (2025-04-08)
+
+
+### Features
+
+* add Google Gemini as an AI provider ([64f1be1](https://github.com/danielscholl/pr-generator-agent/commit/64f1be17ac75e1ac0391d9faa13696ffa7465940)), closes [#28](https://github.com/danielscholl/pr-generator-agent/issues/28)
+
 ## [1.0.0](https://github.com/danielscholl/pr-generator-agent/compare/v0.1.2...v1.0.0) (2025-02-17)
 
 
