@@ -100,7 +100,8 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         return "gemini", "gemini-2.5-pro-experimental"
 
     raise Exception(
-        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY"
+        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, "
+        "OPENAI_API_KEY, or GEMINI_API_KEY"
     )
 
 
@@ -418,7 +419,7 @@ recommended models:
   {YELLOW}azure/o1-mini{ENDC}                  Azure OpenAI o1-mini
   {YELLOW}azure/gpt-4o{ENDC}                   Azure OpenAI GPT-4
   {YELLOW}gpt-4{ENDC}                          OpenAI GPT-4
-  {YELLOW}gemini-2.5-pro-experimental{ENDC}    Google's Gemini 2.5 Pro Experimental (uses gemini-2.5-pro-exp-03-25)
+  {YELLOW}gemini-2.5-pro-experimental{ENDC}    Google's Gemini 2.5 Pro
 
 prompt templates:
   {BLUE}meta{ENDC}                          Default XML prompt template for merge requests""",
@@ -592,9 +593,16 @@ def main(args=None):
                     "temperature": 0.2,
                 }
             elif provider == "gemini":
+                # Structure for Gemini
+                gemini_text = "System instructions: " + system_prompt + "\n\n" + user_prompt
                 params = {
                     "model": model,
-                    "messages": [{"role": "user", "parts": [{"text": f"System instructions: {system_prompt}\n\n{user_prompt}"}]}],
+                    "messages": [
+                        {
+                            "role": "user",
+                            "parts": [{"text": gemini_text}],
+                        }
+                    ],
                     "generation_config": {"temperature": 0.2},
                 }
             else:

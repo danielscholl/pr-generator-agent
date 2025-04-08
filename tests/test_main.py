@@ -35,7 +35,7 @@ def test_detect_provider_and_model_defaults():
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
         assert model == "claude-3-sonnet-20240229"
-    
+
     with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "gemini"

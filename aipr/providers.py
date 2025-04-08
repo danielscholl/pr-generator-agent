@@ -218,9 +218,7 @@ def generate_with_gemini(
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError(
-            "Missing Gemini API key. Please set GEMINI_API_KEY environment variable."
-        )
+        raise ValueError("Missing Gemini API key. Please set GEMINI_API_KEY environment variable.")
 
     genai.configure(api_key=api_key)
 
@@ -249,12 +247,12 @@ def generate_with_gemini(
             messages,
             generation_config={"temperature": 0.2},
         )
-        
+
         if verbose:
             print("\nRaw API Response:")
             print(f"  Model: {model}")
             print("\nResponse Content:")
-            
+
         return response.text
     except Exception as e:
         if verbose:
