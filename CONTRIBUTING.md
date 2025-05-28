@@ -1,12 +1,21 @@
 # Contributing to AIPR
 
-We welcome pull requests from everyone! Whether it's a bug fix, new feature, or documentation improvement, we appreciate your help. This guide will help you get started.
+This project uses an AI-agent driven development workflow, combining automated coding with human oversight to ensure consistent, high-quality implementations.
+
+> This AI-agent driven workflow ensures quality through structure, testing, architecture evaluation, and human oversight.
+
+## Core Principle
+
+Architecture comes first. Our [Architecture Decision Records (ADRs)](docs/adr/index.md) define behavior, capture decisions, and guide implementation. The defined workflow ensures that if each step is followed — from context loading to validation and documentation — code quality and test coverage become natural outcomes, not afterthoughts.
+
+By adhering to this process, AI agents avoid introducing technical debt and stay aligned with the bigger picture of the project. This disciplined approach ensures sustainable, high-quality contributions without sacrificing long-term maintainability.
 
 ## Before You Start
 
-- If you're planning a large or complex change, please open an issue first to discuss the approach.
-- Have questions? Open a Discussion or create an Issue with the "question" label.
-- All contributions must follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+- Review relevant [ADRs](docs/adr/index.md) to understand architectural decisions
+- If you're planning a large or complex change, open an issue first to discuss the approach
+- Have questions? Open a Discussion or create an Issue with the "question" label
+- All contributions must follow our [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Development Guide
 
@@ -96,7 +105,10 @@ make install
 source .venv/bin/activate
 ```
 
-7. **Making Changes**
+7. **AI-Driven Development Workflow**
+
+For AI agents and human contributors following the AI-driven approach:
+
 ```bash
 # Ensure your fork is up to date
 git fetch upstream
@@ -104,12 +116,27 @@ git checkout main
 git merge upstream/main
 
 # Create a new branch
-git checkout -b feature-name
+git checkout -b agent/<issue-number>-<short-description>
 
-# Make your changes...
+# CONTEXT LOADING PHASE
+# 1. Review relevant ADRs: docs/adr/index.md
+# 2. Analyze existing code patterns in aipr/
+# 3. Study test patterns in tests/
+# 4. Check CLAUDE.md for project guidelines
 
-# Verify your changes
-make check
+# IMPLEMENTATION & VALIDATION LOOP
+# 1. Implement following TDD approach
+# 2. Run tests iteratively: make test
+# 3. Ensure 80%+ coverage
+# 4. Validate against architectural patterns
+
+# ARCHITECTURE VALIDATION
+# 1. Check if implementation affects existing ADRs
+# 2. Create new ADRs if architectural decisions made
+# 3. Update documentation if patterns evolved
+
+# FINAL VERIFICATION
+make check  # Must pass all checks
 
 # Commit and push your changes
 git add .
@@ -147,12 +174,94 @@ Releases are automated using Release Please. Here's how it works:
    - Select "Publish current release to PyPI"
    - Click "Run workflow"
 
+## AI Agent Guidelines
+
+This project is optimized for AI coding agents. When working with AI agents:
+
+### Issue Creation & Assignment
+```bash
+# Create well-scoped issues with clear acceptance criteria
+gh issue create -t "feat: Add new provider support" -l enhancement
+
+# Reference architectural patterns and ADRs
+# Specify which files need modification
+# Define success criteria clearly
+```
+
+### Best Tasks for AI Agents
+- Adding new providers following existing patterns (ADR-001)
+- Implementing prompt templates (ADR-002)
+- Enhancing Git integration features (ADR-003)
+- Adding security scanning capabilities (ADR-004)
+- Improving test coverage
+- Fixing type errors or lint issues
+- Small, well-defined features
+
+### Avoid Assigning AI Agents
+- Major architectural changes without ADR updates
+- Security-critical modifications
+- Complex cross-module refactoring
+- Ambiguous or exploratory tasks
+
+### Session Logging for AI Memory
+
+AI agents should maintain session logs for complex workflows:
+
+```markdown
+# Session Log - [Date] - [Feature/Epic]
+
+## Context Loaded
+- ADRs reviewed: 001, 002, 003
+- Code patterns analyzed: aipr/providers.py, aipr/prompts/
+- Tests studied: tests/test_providers.py
+
+## Implementation Summary
+- New provider added following ADR-001 pattern
+- Error handling aligned with existing patterns
+- Tests achieve 85% coverage
+
+## Architectural Impact
+- No ADR changes required
+- Pattern consistency maintained
+- Future provider additions can follow same approach
+
+## Lessons Learned
+- Provider-specific parameter handling needs documentation
+- Test mocking patterns work well for external APIs
+```
+
+## Development Workflow Overview
+
+```mermaid
+graph TB
+    A[Identify Feature/Issue] --> B[Create GitHub Issue]
+    B --> C["Context Loading (ADRs, Patterns, Tests)"]
+    C --> D[Create Feature Branch]
+    D --> E[AI Agent Implementation]
+    E --> F[Run Tests & Iterate]
+    F --> G{Validation Passed?}
+    G -->|No| E
+    G -->|Yes| H[Architecture & Documentation Validation]
+    H --> I{Architecture Changed?}
+    I -->|Yes| J[Update ADRs]
+    I -->|No| K[Update Documentation]
+    J --> K
+    K --> L[Create Merge Request]
+    L --> M["Session Logging (Context Capture)"]
+    M --> N[Review & Merge]
+
+    style A fill:#f9f,stroke:#333,stroke-width:4px
+    style N fill:#9f9,stroke:#333,stroke-width:4px
+    style H fill:#ff9,stroke:#333,stroke-width:2px
+```
+
 ## Pull Request Process
 
-1. After opening a PR, a maintainer will review your changes
-2. We aim to respond within 3 business days
-3. We may request changes or additional tests
-4. Once approved and all checks pass, we'll merge your contribution
+1. **Automated Checks**: All PRs must pass `make check`
+2. **Architecture Review**: Large changes need ADR validation
+3. **AI Agent PRs**: Include session context in PR description
+4. **Human Review**: Maintainer reviews within 3 business days
+5. **Merge**: Once approved and checks pass, we'll merge your contribution
 
 ## License
 
