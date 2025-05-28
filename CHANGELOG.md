@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git integration for analyzing changes and generating contextual PR descriptions
 - Command-line interface with customizable options
 - Automatic token counting and context management
-- Support for Python 3.10 and above
+- Support for Python 3.12 and above
 - Comprehensive test suite with pytest
 - GitHub Actions workflows for testing and releases
 - Development environment setup with black, isort, and flake8

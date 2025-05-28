@@ -11,3 +11,4 @@ per-file-ignores =
     # as test files prioritize functionality over documentation.
     tests/*: F401,F841,D100,D103,D400
     aipr/main.py: E501
+    aipr/prompts/prompts.py: E501

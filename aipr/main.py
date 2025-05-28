@@ -143,9 +143,7 @@ def print_header(text: str, level: int = 1):
         print("-" * len(text))
 
 
-def run_trivy_scan(
-    path: str, silent: bool = False, verbose: bool = False
-) -> Dict[str, Any]:
+def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Dict[str, Any]:
     """Run trivy filesystem scan and return the results as a dictionary."""
     try:
         # Determine project type and scanning approach
@@ -177,8 +175,7 @@ def run_trivy_scan(
             try:
                 if not silent:
                     print(
-                        f"{BLUE}Detected Java project, "
-                        f"resolving Maven dependencies...{ENDC}",
+                        f"{BLUE}Detected Java project, " f"resolving Maven dependencies...{ENDC}",
                         file=sys.stderr,
                     )
                 subprocess.run(
@@ -356,8 +353,7 @@ def compare_vulnerabilities(
                     grouped[sev] = []
                 grouped[sev].append(vuln)
         return {
-            k: grouped[k]
-            for k in sorted(grouped.keys(), key=lambda x: severity_order.get(x, 999))
+            k: grouped[k] for k in sorted(grouped.keys(), key=lambda x: severity_order.get(x, 999))
         }
 
     # Prepare detailed analysis data
@@ -373,9 +369,7 @@ def compare_vulnerabilities(
                 analysis_data.append(f"  - Title: {vuln['title']}")
                 analysis_data.append(f"  - Description: {vuln['description']}")
                 if vuln["fix_version"]:
-                    fix_info = (
-                        f"  - Fix available in version: " f"{vuln['fix_version']}"
-                    )
+                    fix_info = f"  - Fix available in version: " f"{vuln['fix_version']}"
                     analysis_data.append(fix_info)
                 if vuln["references"]:
                     analysis_data.append("  - References:")
@@ -401,8 +395,7 @@ def compare_vulnerabilities(
             report.append(f"\n#### {severity}\n")
             for vuln in sorted(vulns, key=lambda x: x["id"]):
                 vuln_line = (
-                    f"- {vuln['id']} in {vuln['pkg']} "
-                    f"{vuln['version']} ({vuln['target']})"
+                    f"- {vuln['id']} in {vuln['pkg']} " f"{vuln['version']} ({vuln['target']})"
                 )
                 report.append(vuln_line)
 
@@ -413,8 +406,7 @@ def compare_vulnerabilities(
             report.append(f"\n#### {severity}\n")
             for vuln in sorted(vulns, key=lambda x: x["id"]):
                 vuln_line = (
-                    f"- {vuln['id']} in {vuln['pkg']} "
-                    f"{vuln['version']} ({vuln['target']})"
+                    f"- {vuln['id']} in {vuln['pkg']} " f"{vuln['version']} ({vuln['target']})"
                 )
                 report.append(vuln_line)
 
@@ -462,9 +454,7 @@ prompt templates:
         help="Verbose mode - show detailed API interaction",
     )
     parser.add_argument("-t", "--target", help="Target branch for comparison")
-    parser.add_argument(
-        "--vulns", action="store_true", help="Include vulnerability scan"
-    )
+    parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
     parser.add_argument("--working-tree", action="store_true", help="Use working tree")
     parser.add_argument(
         "-m",
@@ -523,21 +513,13 @@ def generate_description(
     user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
 
     if provider == "anthropic":
-        return generate_with_anthropic(
-            user_prompt, vuln_data, model, system_prompt, verbose
-        )
+        return generate_with_anthropic(user_prompt, vuln_data, model, system_prompt, verbose)
     if provider == "azure":
-        return generate_with_azure_openai(
-            user_prompt, vuln_data, model, system_prompt, verbose
-        )
+        return generate_with_azure_openai(user_prompt, vuln_data, model, system_prompt, verbose)
     if provider == "openai":
-        return generate_with_openai(
-            user_prompt, vuln_data, model, system_prompt, verbose
-        )
+        return generate_with_openai(user_prompt, vuln_data, model, system_prompt, verbose)
     if provider == "gemini":
-        return generate_with_gemini(
-            user_prompt, vuln_data, model, system_prompt, verbose
-        )
+        return generate_with_gemini(user_prompt, vuln_data, model, system_prompt, verbose)
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -613,8 +595,7 @@ def main(args=None):
             # Prepare the API parameters
             if provider == "azure" and model == "o1-mini":
                 combined_prompt = (
-                    f"System Instructions:\n{system_prompt}\n\n"
-                    f"User Request:\n{user_prompt}"
+                    f"System Instructions:\n{system_prompt}\n\n" f"User Request:\n{user_prompt}"
                 )
                 messages = [{"role": "user", "content": combined_prompt}]
                 params = {
@@ -632,9 +613,7 @@ def main(args=None):
                 }
             elif provider == "gemini":
                 # Structure for Gemini
-                gemini_text = (
-                    "System instructions: " + system_prompt + "\n\n" + user_prompt
-                )
+                gemini_text = "System instructions: " + system_prompt + "\n\n" + user_prompt
                 params = {
                     "model": model,
                     "messages": [
@@ -669,11 +648,7 @@ def main(args=None):
             )
             print("\nParameters:")
             print("─" * 40)
-            print(
-                json.dumps(
-                    {k: v for k, v in params.items() if k != "messages"}, indent=2
-                )
-            )
+            print(json.dumps({k: v for k, v in params.items() if k != "messages"}, indent=2))
             print("\nMessages:")
             print("─" * 40)
             for msg in params["messages"]:
@@ -694,8 +669,7 @@ def main(args=None):
                 else PromptManager().get_system_prompt()
             ),
             args.verbose,
-            prompt_manager
-            or PromptManager(),  # Ensure we always pass a valid PromptManager
+            prompt_manager or PromptManager(),  # Ensure we always pass a valid PromptManager
         )
 
         if args.verbose:

@@ -20,7 +20,7 @@ By adhering to this process, AI agents avoid introducing technical debt and stay
 ## Development Guide
 
 1. **Prerequisites**
-   - Python 3.10 or higher
+   - Python 12 or higher
    - Git
    - GitHub account
    - GitHub CLI (`gh`) - https://cli.github.com

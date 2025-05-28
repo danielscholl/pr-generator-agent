@@ -20,6 +20,7 @@ class PromptManager:
     REQUIRED_XML_ELEMENTS = ["changes-set", "vulnerabilities-set"]
 
     def __init__(self, prompt_name: str = None):
+        """Initialize the PromptManager with an optional custom prompt name."""
         self._default_system_prompt = (
             "You are a helpful assistant for generating Merge Requests.\n"
             "Your task is to analyze Git changes and vulnerability comparison data to create "
@@ -74,7 +75,7 @@ class PromptManager:
     def _load_xml_prompt(self, file_path: str) -> None:
         """Load and parse the XML prompt template from a file."""
         try:
-            tree = ET.parse(file_path)
+            tree = ET.parse(file_path)  # nosec B314 - parsing trusted local XML files
             root = tree.getroot()
             self._validate_xml_prompt(root)
             self._xml_prompt = root
@@ -88,7 +89,7 @@ class PromptManager:
     def _load_xml_prompt_from_string(self, xml_content: str) -> None:
         """Load and parse the XML prompt template from a string."""
         try:
-            root = ET.fromstring(xml_content)
+            root = ET.fromstring(xml_content)  # nosec B314 - parsing trusted local XML content
             self._validate_xml_prompt(root)
             self._xml_prompt = root
         except ET.ParseError as e:

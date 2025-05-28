@@ -17,11 +17,7 @@ from aipr.main import (
     run_trivy_scan,
 )
 from aipr.prompts import PromptManager
-from aipr.providers import (
-    generate_with_anthropic,
-    generate_with_azure_openai,
-    generate_with_openai,
-)
+from aipr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 
 def test_version():
@@ -604,9 +600,7 @@ def test_main_single_branch_vuln_scan(
         ]
     }
 
-    mock_generate.return_value = (
-        "Test PR description with single branch vulnerabilities"
-    )
+    mock_generate.return_value = "Test PR description with single branch vulnerabilities"
 
     # Run main with vulnerability scanning but no valid target branch
     try:
@@ -619,9 +613,7 @@ def test_main_single_branch_vuln_scan(
 
     # Verify git operations were for working tree changes (staged and unstaged)
     mock_repo.git.diff.assert_has_calls([call("HEAD", "--cached"), call()])
-    assert (
-        mock_repo.git.diff.call_count == 2
-    )  # Called for both staged and unstaged changes
+    assert mock_repo.git.diff.call_count == 2  # Called for both staged and unstaged changes
 
     # Verify output
     captured = capsys.readouterr()
@@ -691,9 +683,7 @@ def test_main_anthropic(mock_repo, mock_anthropic):
 @patch("aipr.main.generate_with_openai")
 def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with OpenAI"""
-    args = Mock(
-        model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None
-    )
+    args = Mock(model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None)
     mock_openai_gen.return_value = "Test description"
 
     with patch("aipr.main.parse_args", return_value=args):
@@ -908,9 +898,7 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
 @patch("aipr.main.generate_with_anthropic")
 @patch("aipr.main.generate_with_azure_openai")
 @patch("aipr.main.generate_with_openai")
-def test_main_azure_o1_mini(
-    mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo
-):
+def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with Azure OpenAI o1-mini model that doesn't support system messages"""
     args = Mock(
         model="azure/o1-mini",
