@@ -64,12 +64,12 @@ def test_detect_provider_and_model_aliases():
         ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
         ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
         # Anthropic model aliases
-        ("claude-3", ("anthropic", "claude-3-opus-20240229")),
-        ("claude-3-opus", ("anthropic", "claude-3-opus-20240229")),
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
         ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
         ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
         ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
+        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
         # Gemini model aliases
         ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
         ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
@@ -122,9 +122,10 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude-3", ("anthropic", "claude-3-opus-20240229")),
-        ("claude-3-opus", ("anthropic", "claude-3-opus-20240229")),
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
+        ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
+        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -603,7 +604,9 @@ def test_main_single_branch_vuln_scan(
         ]
     }
 
-    mock_generate.return_value = "Test PR description with single branch vulnerabilities"
+    mock_generate.return_value = (
+        "Test PR description with single branch vulnerabilities"
+    )
 
     # Run main with vulnerability scanning but no valid target branch
     try:
@@ -616,7 +619,9 @@ def test_main_single_branch_vuln_scan(
 
     # Verify git operations were for working tree changes (staged and unstaged)
     mock_repo.git.diff.assert_has_calls([call("HEAD", "--cached"), call()])
-    assert mock_repo.git.diff.call_count == 2  # Called for both staged and unstaged changes
+    assert (
+        mock_repo.git.diff.call_count == 2
+    )  # Called for both staged and unstaged changes
 
     # Verify output
     captured = capsys.readouterr()
@@ -686,7 +691,9 @@ def test_main_anthropic(mock_repo, mock_anthropic):
 @patch("aipr.main.generate_with_openai")
 def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with OpenAI"""
-    args = Mock(model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None)
+    args = Mock(
+        model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None
+    )
     mock_openai_gen.return_value = "Test description"
 
     with patch("aipr.main.parse_args", return_value=args):
@@ -901,7 +908,9 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
 @patch("aipr.main.generate_with_anthropic")
 @patch("aipr.main.generate_with_azure_openai")
 @patch("aipr.main.generate_with_openai")
-def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
+def test_main_azure_o1_mini(
+    mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo
+):
     """Test main function with Azure OpenAI o1-mini model that doesn't support system messages"""
     args = Mock(
         model="azure/o1-mini",

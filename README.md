@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/danielscholl/pr-generator-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/danielscholl/pr-generator-agent/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/danielscholl/pr-generator-agent)](https://github.com/danielscholl/pr-generator-agent/releases)
-[![Python](https://img.shields.io/badge/python-3.10%20|%203.11-blue)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.11%20|%203.12-blue)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue)](http://mypy-lang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -72,7 +72,7 @@ Security Analysis:
 
 ## Requirements
 
-- Python 3.10 or higher (3.10, 3.11 officially supported)
+- Python 3.11 or higher (3.11, 3.12 officially supported)
 - Git
 - LLM API Key (Anthropic, OpenAI, or Azure OpenAI)
 - [Trivy](https://aquasecurity.github.io/trivy/latest/getting-started/installation/) (used for `--vulns` scanning)
@@ -117,8 +117,9 @@ Choose from multiple AI providers:
 | Anthropic | `claude-3-sonnet` | default |
 | | `claude-3.5-sonnet` | latest |
 | | `claude-3.5-haiku` | latest |
-| | `claude-3-opus` | latest |
 | | `claude-3-haiku` | |
+| | `claude-4` | latest |
+| | `claude-4.0` | alias for `claude-4` |
 | | `claude` | alias for `claude-3-sonnet` |
 | Azure OpenAI | `azure/o1-mini` | |
 | | `azure/gpt-4o-mini` | |
