@@ -17,7 +17,11 @@ from aipr.main import (
     run_trivy_scan,
 )
 from aipr.prompts import PromptManager
-from aipr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
+from aipr.providers import (
+    generate_with_anthropic,
+    generate_with_azure_openai,
+    generate_with_openai,
+)
 
 
 def test_version():
@@ -703,7 +707,12 @@ def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_r
 def test_main_azure(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with Azure OpenAI"""
     args = Mock(
-        model="azure/gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None
+        model="azure/gpt-4",
+        target="-",
+        vulns=False,
+        silent=True,
+        verbose=False,
+        prompt=None,
     )
     mock_azure_gen.return_value = "Test description"
 
@@ -734,7 +743,13 @@ def test_main_with_vulns(
 ):
     """Test main function with vulnerability scanning"""
     args = Mock(
-        model="gpt-4", target="-", vulns=True, silent=True, verbose=False, prompt=None, debug=False
+        model="gpt-4",
+        target="-",
+        vulns=True,
+        silent=True,
+        verbose=False,
+        prompt=None,
+        debug=False,
     )
     mock_openai_gen.return_value = "Test description"
 
@@ -842,10 +857,18 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
     )
 
     mock_azure.return_value.chat.completions.create.return_value.choices = [
-        type("Choice", (), {"message": type("Message", (), {"content": "Test response"})()})()
+        type(
+            "Choice",
+            (),
+            {"message": type("Message", (), {"content": "Test response"})()},
+        )()
     ]
     mock_openai.return_value.chat.completions.create.return_value.choices = [
-        type("Choice", (), {"message": type("Message", (), {"content": "Test response"})()})()
+        type(
+            "Choice",
+            (),
+            {"message": type("Message", (), {"content": "Test response"})()},
+        )()
     ]
 
     # Test Anthropic

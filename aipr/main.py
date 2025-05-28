@@ -161,7 +161,14 @@ def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Di
         ]
         is_python = any(os.path.exists(os.path.join(path, f)) for f in python_files)
 
-        trivy_args = ["trivy", "fs", "--format", "json", "--scanners", "vuln,secret,config"]
+        trivy_args = [
+            "trivy",
+            "fs",
+            "--format",
+            "json",
+            "--scanners",
+            "vuln,secret,config",
+        ]
 
         # Add dependency scanning for supported project types
         if is_java:
@@ -237,10 +244,16 @@ def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Di
                 if has_pyproject:
                     pkg_files.append("pyproject.toml")
                 if not silent:
-                    print(f"{BLUE}Using Python package metadata files...{ENDC}", file=sys.stderr)
+                    print(
+                        f"{BLUE}Using Python package metadata files...{ENDC}",
+                        file=sys.stderr,
+                    )
 
             if pkg_files and not silent:
-                print(f"{BLUE}Found package files: {', '.join(pkg_files)}{ENDC}", file=sys.stderr)
+                print(
+                    f"{BLUE}Found package files: {', '.join(pkg_files)}{ENDC}",
+                    file=sys.stderr,
+                )
 
             # Add Python-specific scanning options
             trivy_args.append("--dependency-tree")
@@ -256,7 +269,10 @@ def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Di
         trivy_args.append(path)
 
         if not silent and verbose:
-            print(f"{BLUE}Running trivy with args: {' '.join(trivy_args)}{ENDC}", file=sys.stderr)
+            print(
+                f"{BLUE}Running trivy with args: {' '.join(trivy_args)}{ENDC}",
+                file=sys.stderr,
+            )
 
         # Run trivy scan
         result = subprocess.run(trivy_args, capture_output=True, text=True, check=True)
@@ -514,7 +530,10 @@ def main(args=None):
     try:
         repo = git.Repo(os.getcwd(), search_parent_directories=True)
     except git.InvalidGitRepositoryError:
-        print(f"{RED}Error: Directory is not a valid Git repository{ENDC}", file=sys.stderr)
+        print(
+            f"{RED}Error: Directory is not a valid Git repository{ENDC}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:

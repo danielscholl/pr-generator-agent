@@ -20,15 +20,15 @@ We welcome pull requests from everyone! Whether it's a bug fix, new feature, or 
    - PyPI Package Name: `pr-generator-agent` (for installation)
    - Module Name: `aipr` (for imports)
    - Command Name: `aipr` (CLI tool)
-   
+
    Example usage:
    ```bash
    # Installing the package
    pip install pr-generator-agent
-   
+
    # Using the CLI tool
    aipr
-   
+
    # Importing in Python
    from aipr import ...
    ```
@@ -93,7 +93,7 @@ cd pr-generator-agent
 make install
 
 # Activate the virtual environment
-source .venv/bin/activate 
+source .venv/bin/activate
 ```
 
 7. **Making Changes**
