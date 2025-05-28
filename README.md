@@ -1,6 +1,24 @@
 # AIPR - Agentic Pull Request Description Generator
 
+[![CI](https://github.com/danielscholl/pr-generator-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/danielscholl/pr-generator-agent/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/danielscholl/pr-generator-agent)](https://github.com/danielscholl/pr-generator-agent/releases)
+[![Python](https://img.shields.io/badge/python-3.10%20|%203.11-blue)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue)](http://mypy-lang.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 Automatically analyze git diffs and vulnerabilities to generate comprehensive, well-structured pull request descriptions. By intelligently detecting changes, performing security scans, and leveraging state-of-the-art AI models, AIPR helps teams save time while maintaining high-quality, consistent pull request descriptions.
+
+## AI-Driven Development
+
+[![AI-Driven](https://img.shields.io/badge/AI--Driven-Development-blueviolet)](https://github.com/danielscholl/pr-generator-agent/blob/main/docs/adr/index.md)
+[![Claude Ready](https://img.shields.io/badge/Claude%20Code-Ready-8A2BE2?logo=anthropic)](https://github.com/danielscholl/pr-generator-agent/blob/main/CLAUDE.md)
+
+This project follows an AI-driven development workflow:
+- 🤖 **Built with AI** - Developed using Claude Code with comprehensive AI guidance
+- 📋 **AI Task Assignment** - Structured workflow for AI agents documented in [CONTRIBUTING.md](CONTRIBUTING.md)
+- 📚 **AI-Friendly Documentation** - Comprehensive guides for AI agents in [CLAUDE.md](CLAUDE.md) and [Architecture Decision Records](docs/adr/index.md)
+- 🏗️ **Architecture-First Design** - ADRs define behavior and guide implementation patterns
 
 
 ```bash
