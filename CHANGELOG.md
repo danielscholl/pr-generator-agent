@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.1.0...v1.2.0) (2025-05-28)
+
+
+### Features
+
+* add Claude 4.0 model support and remove deprecated Opus models ([419dbb3](https://github.com/danielscholl/pr-generator-agent/commit/419dbb37db7ef9cb301d8eb41985ff59a136ad13))
+* Add Claude 4.0 model support and remove deprecated Opus models ([3fe0ff0](https://github.com/danielscholl/pr-generator-agent/commit/3fe0ff08c796d8f8186bd312a00240bdf21da851))
+* enhance repository management with pre-commit hooks and CI improvements ([e50aa4e](https://github.com/danielscholl/pr-generator-agent/commit/e50aa4e1a07bfc2b5e4cb8d94f85fbc71cd5734d))
+* enhance repository management with pre-commit hooks and CI improvements ([cf55baf](https://github.com/danielscholl/pr-generator-agent/commit/cf55bafce68cb33f77d7182448f84922a28166bf)), closes [#31](https://github.com/danielscholl/pr-generator-agent/issues/31)
+
+
+### Bug Fixes
+
+* add colorama dependency for isort --color flag in CI ([2957b84](https://github.com/danielscholl/pr-generator-agent/commit/2957b84a1901a4c513f8cfdecafd206fdeef299f)), closes [#31](https://github.com/danielscholl/pr-generator-agent/issues/31)
+* update black target version to py311 ([f13c84a](https://github.com/danielscholl/pr-generator-agent/commit/f13c84a23442e990df0a8746793f9771f5c09636))
+
+
+### Documentation
+
+* add ADRs and enhance AI-driven development workflow ([1b55696](https://github.com/danielscholl/pr-generator-agent/commit/1b556962e34cf373123d1207793f69dd61476381))
+* add ADRs and enhance AI-driven development workflow ([a88e0b9](https://github.com/danielscholl/pr-generator-agent/commit/a88e0b9667ebc5c63f96f0732b61244c95a7b0fb))
+* add badges and AI-driven development section to README ([d1f9815](https://github.com/danielscholl/pr-generator-agent/commit/d1f9815648152d7b237848cc5cadd6e8eed5d539))
+* address PR review comments ([9a8f2b7](https://github.com/danielscholl/pr-generator-agent/commit/9a8f2b73dc9f688706d546282105d554e02a1f4c)), closes [#32](https://github.com/danielscholl/pr-generator-agent/issues/32)
+* updates ([1a7e5a7](https://github.com/danielscholl/pr-generator-agent/commit/1a7e5a7d56e02ced984c0f2b873b2341a823693b))
+
 ## [1.1.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.0.0...v1.1.0) (2025-04-08)
 
 
