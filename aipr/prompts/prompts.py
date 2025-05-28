@@ -53,9 +53,7 @@ class PromptManager:
         available_prompts = self._get_available_prompts()
         try:
             with (
-                importlib.resources.files("aipr.prompts")
-                .joinpath(f"{prompt_name}.xml")
-                .open("r")
+                importlib.resources.files("aipr.prompts").joinpath(f"{prompt_name}.xml").open("r")
             ) as f:
                 self._load_xml_prompt_from_string(f.read())
         except Exception as e:
@@ -85,9 +83,7 @@ class PromptManager:
         except FileNotFoundError:
             raise InvalidPromptError(f"Prompt file not found: {file_path}")
         except PermissionError:
-            raise InvalidPromptError(
-                f"Permission denied reading prompt file: {file_path}"
-            )
+            raise InvalidPromptError(f"Permission denied reading prompt file: {file_path}")
 
     def _load_xml_prompt_from_string(self, xml_content: str) -> None:
         """Load and parse the XML prompt template from a string."""
@@ -103,9 +99,7 @@ class PromptManager:
         try:
             prompts_dir = importlib.resources.files("aipr.prompts")
             return [
-                f.stem
-                for f in prompts_dir.iterdir()
-                if f.suffix == ".xml" and f.stem != "__init__"
+                f.stem for f in prompts_dir.iterdir() if f.suffix == ".xml" and f.stem != "__init__"
             ]
         except Exception:
             return []
@@ -114,15 +108,11 @@ class PromptManager:
         """Get the system prompt."""
         return self._default_system_prompt
 
-    def get_user_prompt(
-        self, diff: str, vuln_data: Union[str, dict, None] = None
-    ) -> str:
+    def get_user_prompt(self, diff: str, vuln_data: Union[str, dict, None] = None) -> str:
         """Get the user prompt with diff and optional vulnerability data."""
         if self.prompt_name:
             if self._xml_prompt is None:
-                raise ValueError(
-                    "XML prompt file was specified but could not be loaded"
-                )
+                raise ValueError("XML prompt file was specified but could not be loaded")
 
             # Find the changes-set and vulnerabilities-set elements
             changes_set = self._xml_prompt.find(".//changes-set")
@@ -130,9 +120,7 @@ class PromptManager:
 
             # Update the content
             if changes_set is not None:
-                changes_set.text = (
-                    "\n" + diff + "\n"
-                )  # Add newlines for better formatting
+                changes_set.text = "\n" + diff + "\n"  # Add newlines for better formatting
             if vulns_set is not None:
                 if vuln_data:
                     vulns_set.text = (
