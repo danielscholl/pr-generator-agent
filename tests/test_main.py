@@ -17,11 +17,7 @@ from aipr.main import (
     run_trivy_scan,
 )
 from aipr.prompts import PromptManager
-from aipr.providers import (
-    generate_with_anthropic,
-    generate_with_azure_openai,
-    generate_with_openai,
-)
+from aipr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 
 def test_version():
@@ -64,12 +60,12 @@ def test_detect_provider_and_model_aliases():
         ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
         ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
         # Anthropic model aliases
-        ("claude-3", ("anthropic", "claude-3-opus-20240229")),
-        ("claude-3-opus", ("anthropic", "claude-3-opus-20240229")),
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
         ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
         ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
         ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
+        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
         # Gemini model aliases
         ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
         ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
@@ -122,9 +118,10 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude-3", ("anthropic", "claude-3-opus-20240229")),
-        ("claude-3-opus", ("anthropic", "claude-3-opus-20240229")),
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
+        ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
+        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)

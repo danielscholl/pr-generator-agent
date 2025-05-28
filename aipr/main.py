@@ -80,12 +80,12 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         # Handle Anthropic models
         if model.startswith("claude"):
             anthropic_models = {
-                "claude-3": "claude-3-opus-20240229",
-                "claude-3-opus": "claude-3-opus-20240229",
                 "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
                 "claude-3-sonnet": "claude-3-sonnet-20240229",
                 "claude-3.5-haiku": "claude-3-5-haiku-20241022",
                 "claude-3-haiku": "claude-3-haiku-20240307",
+                "claude-4": "claude-sonnet-4-20250514",
+                "claude-4.0": "claude-sonnet-4-20250514",
             }
             return "anthropic", anthropic_models.get(model, model)
 

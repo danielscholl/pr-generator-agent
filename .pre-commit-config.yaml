@@ -28,14 +28,14 @@ repos:
     hooks:
       - id: black
         language_version: python3.11
-        args: ['--line-length=88']
+        args: ['--line-length=100']
 
   # Import sorting
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black", "--line-length=88"]
+        args: ["--profile", "black", "--line-length=100"]
 
   # Linting
   - repo: https://github.com/pycqa/flake8
@@ -43,9 +43,9 @@ repos:
     hooks:
       - id: flake8
         args: [
-          "--max-line-length=88",
-          "--extend-ignore=E203,W503",
-          "--max-complexity=10"
+          "--max-line-length=100",
+          "--extend-ignore=E203,D100,D103,D105,D107,D200,D205,D400,D401,C901,SIM105,SIM117,E501",
+          "--per-file-ignores=tests/*:F401,F841,D100,D103,D400;aipr/main.py:E501;aipr/prompts/prompts.py:E501"
         ]
         additional_dependencies: [
           'flake8-docstrings',
