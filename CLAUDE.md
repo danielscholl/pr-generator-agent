@@ -43,6 +43,12 @@ Custom prompts must be XML files with:
 - `<system>` element for system prompt
 - `<user>` element with `<changes-set>` and `<vulnerabilities-set>` placeholders
 
+## Core Documentation
+
+- @CONTRIBUTING.md - AI-driven development workflow
+- @docs/adr/README.md - Architectural decisions index
+- @CHANGELOG.md - Feature history with architectural context
+
 ## Environment Setup
 
 Required environment variables:
