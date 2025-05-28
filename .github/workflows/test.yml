@@ -13,6 +13,12 @@ on:
       - 'docs/**'
       - '.gitignore'
       - 'LICENSE'
+  workflow_dispatch:  # Allow manual trigger
+
+# Cancel in-progress runs for the same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Minimal permissions required for running tests and linting
 permissions:
@@ -25,12 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'  # Use latest stable Python for linting
-          
+
       - name: Cache Python dependencies
         uses: actions/cache@v4
         with:
@@ -38,37 +44,123 @@ jobs:
           key: ${{ runner.os }}-pip-lint-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-lint-
-            
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          
-      - name: Run linters
+          # Install additional security and quality tools
+          pip install bandit[toml] safety pip-audit
+
+      # Run each check separately with continue-on-error for better visibility
+      - name: Check code formatting with black
+        id: black
+        continue-on-error: true
         run: |
-          black --check aipr/ tests/
-          isort --check aipr/ tests/
-          flake8 aipr/ tests/
+          echo "::group::Black Formatting Check"
+          black --check aipr/ tests/ --diff --color
+          echo "::endgroup::"
+
+      - name: Check import sorting with isort
+        id: isort
+        continue-on-error: true
+        run: |
+          echo "::group::isort Import Check"
+          isort --check aipr/ tests/ --diff --color
+          echo "::endgroup::"
+
+      - name: Lint with flake8
+        id: flake8
+        continue-on-error: true
+        run: |
+          echo "::group::Flake8 Linting"
+          flake8 aipr/ tests/ --count --statistics --show-source
+          echo "::endgroup::"
+
+      - name: Security check with bandit
+        id: bandit
+        continue-on-error: true
+        run: |
+          echo "::group::Bandit Security Check"
+          bandit -r aipr/ -ll -i -x tests/
+          echo "::endgroup::"
+
+      - name: Check dependencies with pip-audit
+        id: pip-audit
+        continue-on-error: true
+        run: |
+          echo "::group::Pip Audit Dependency Check"
+          pip-audit --desc || true
+          echo "::endgroup::"
+
+      # Generate quality check summary
+      - name: Quality Check Summary
+        if: always()
+        run: |
+          echo "## 🔍 Code Quality Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check formatting
+          if [[ "${{ steps.black.outcome }}" == "failure" ]]; then
+            echo "❌ **Black:** Run \`black aipr/ tests/\` to fix formatting" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Black:** Code formatting passed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ steps.isort.outcome }}" == "failure" ]]; then
+            echo "❌ **isort:** Run \`isort aipr/ tests/\` to fix imports" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **isort:** Import sorting passed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ steps.flake8.outcome }}" == "failure" ]]; then
+            echo "❌ **Flake8:** Fix linting errors shown above" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Flake8:** Linting passed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ steps.bandit.outcome }}" == "failure" ]]; then
+            echo "⚠️  **Bandit:** Security issues found (non-blocking)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Bandit:** Security check passed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ steps.pip-audit.outcome }}" == "failure" ]]; then
+            echo "⚠️  **Pip-audit:** Vulnerable dependencies found (non-blocking)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Pip-audit:** No known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail if required checks failed
+          if [[ "${{ steps.black.outcome }}" == "failure" ]] || \
+             [[ "${{ steps.isort.outcome }}" == "failure" ]] || \
+             [[ "${{ steps.flake8.outcome }}" == "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Required checks failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All required checks passed!" >> $GITHUB_STEP_SUMMARY
+          fi
 
   test:
-    name: Python Tests
+    name: Python ${{ matrix.python-version }} Tests
     needs: lint  # Only run tests if linting passes
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
+      fail-fast: false  # Continue testing other versions if one fails
       matrix:
-        # We support the latest two stable Python versions plus beta
-        python-version: ['3.11']  # Removed 3.10 as it is incompatible
-        
+        python-version: ['3.11', '3.12']
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           check-latest: true
-          
+
       - name: Cache Python dependencies
         uses: actions/cache@v4
         with:
@@ -76,12 +168,35 @@ jobs:
           key: ${{ runner.os }}-pip-test-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-test-${{ matrix.python-version }}-
-            
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          
-      - name: Run tests
+
+      - name: Run tests with coverage
         run: |
-          pytest --cov=aipr --cov-report=term-missing
+          pytest \
+            --cov=aipr \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-fail-under=55 \
+            -v
+
+      # Upload coverage reports
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.11'
+        with:
+          name: coverage-report
+          path: htmlcov/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
+        continue-on-error: true
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: true

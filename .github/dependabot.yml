@@ -1,24 +1,69 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
 updates:
-  - package-ecosystem: "pip"  # For Python packages
-    directory: "/"  # Location of package manifests
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "python"
-
-  - package-ecosystem: "github-actions"  # For GitHub Actions
+  # Python dependencies
+  - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/Los_Angeles"
     open-pull-requests-limit: 10
+    # Group related updates to reduce PR noise
+    groups:
+      # Development dependencies
+      python-dev:
+        patterns:
+          - "black"
+          - "isort"
+          - "flake8*"
+          - "pytest*"
+          - "coverage*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Type checking and linting
+      python-types:
+        patterns:
+          - "mypy"
+          - "types-*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Labels to apply to PRs
+    labels:
+      - "dependencies"
+      - "python"
+    # PR reviewers
+    reviewers:
+      - "danielscholl"
+    # Commit message configuration
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Allow certain updates
+    allow:
+      # Only direct dependencies (not sub-dependencies)
+      - dependency-type: "direct"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"
+    reviewers:
+      - "danielscholl"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

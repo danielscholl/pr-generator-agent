@@ -22,7 +22,10 @@ def generate_with_anthropic(
     if verbose:
         print("\nSending request to Anthropic API:")
         print(f"  Model: {model}")
-        print("  Parameters:", json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2))
+        print(
+            "  Parameters:",
+            json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2),
+        )
         print("\nRequest Messages:")
         print("\nSYSTEM MESSAGE:")
         print(system_prompt)
@@ -44,7 +47,9 @@ def generate_with_anthropic(
         if verbose:
             print("\nRaw API Response:")
             print(f"  Model: {response.model}")
-            print(f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}")
+            print(
+                f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}"
+            )
             print("\nResponse Content:")
         return response.content[0].text
     except Exception as e:
@@ -109,7 +114,9 @@ def generate_with_azure_openai(
             print(f"  Model: {model}")
             print(
                 "  Parameters:",
-                json.dumps({k: v for k, v in kwargs.items() if k != "messages"}, indent=2),
+                json.dumps(
+                    {k: v for k, v in kwargs.items() if k != "messages"}, indent=2
+                ),
             )
             print("\nRequest Messages:")
             for msg in messages:
@@ -129,7 +136,9 @@ def generate_with_azure_openai(
             if verbose:
                 print("\nRaw API Response:")
                 print(f"  Model: {response.model}")
-                print(f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}")
+                print(
+                    f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}"
+                )
                 print("\nResponse Content:")
             return response.choices[0].message.content
         except Exception as api_error:
@@ -167,7 +176,10 @@ def generate_with_openai(
     if verbose:
         print("\nSending request to OpenAI API:")
         print(f"  Model: {model}")
-        print("  Parameters:", json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2))
+        print(
+            "  Parameters:",
+            json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2),
+        )
         print("\nRequest Messages:")
         for msg in messages:
             print(f"\n{msg['role'].upper()} MESSAGE:")
@@ -188,7 +200,9 @@ def generate_with_openai(
         if verbose:
             print("\nRaw API Response:")
             print(f"  Model: {response.model}")
-            print(f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}")
+            print(
+                f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}"
+            )
             print("\nResponse Content:")
         return response.choices[0].message.content
     except Exception as e:
@@ -218,13 +232,18 @@ def generate_with_gemini(
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("Missing Gemini API key. Please set GEMINI_API_KEY environment variable.")
+        raise ValueError(
+            "Missing Gemini API key. Please set GEMINI_API_KEY environment variable."
+        )
 
     genai.configure(api_key=api_key)
 
     # Create messages in the format Gemini expects
     messages = [
-        {"role": "user", "parts": [{"text": f"System instructions: {system_prompt}\n\n{diff}"}]},
+        {
+            "role": "user",
+            "parts": [{"text": f"System instructions: {system_prompt}\n\n{diff}"}],
+        },
     ]
 
     if verbose:

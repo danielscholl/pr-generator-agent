@@ -107,5 +107,3 @@ The prompt system should support the following capabilities:
 - Verify all code examples in documentation are correct and functional
 - Test documentation for clarity and completeness
 - Ensure help text and error messages are clear and actionable
-
-

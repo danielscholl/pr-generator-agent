@@ -15,4 +15,4 @@
     {"type": "build", "section": "Build System", "hidden": true},
     {"type": "ci", "section": "Continuous Integration", "hidden": true}
   ]
-} 
+}
