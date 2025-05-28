@@ -30,6 +30,7 @@ dev = [
     "flake8-comprehensions>=3.14.0",
     "flake8-simplify>=0.21.0",
     "isort>=5.13.2",
+    "colorama>=0.4.6",
     "pytest>=8.0.2",
     "pytest-cov>=4.1.0",
     "bandit[toml]>=1.7.5",
