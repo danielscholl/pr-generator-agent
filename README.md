@@ -42,10 +42,10 @@ aipr commit
 # Use: Azure OpenAI o1-mini model
 # Prompt: meta template
 # Output: Verbose
-aipr generate -t main --vulns -p meta -m azure/o1-mini -v
+aipr pr -t main --vulns -p meta -m azure/o1-mini -v
 
 # Inline with merge request creation
-gh pr create -b "$(aipr generate -s)" -t "feat: New Feature"
+gh pr create -b "$(aipr pr -s)" -t "feat: New Feature"
 
 # Inline with commit creation
 git commit -m "$(aipr commit)"
@@ -120,9 +120,9 @@ docs: update installation and usage documentation
 
 AIPR provides two main commands:
 
-### Generate Command (PR Descriptions)
+### PR Command (Pull Request Descriptions)
 ```bash
-aipr generate [options]  # or just 'aipr' for backward compatibility
+aipr pr [options]  # or just 'aipr' for backward compatibility
 ```
 
 **Options:**

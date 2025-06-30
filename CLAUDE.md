@@ -23,9 +23,9 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 - Run with coverage: `pytest --cov=aipr`
 
 ### Usage
-- Generate PR description: `aipr --model claude` or `aipr generate --model claude`
+- Generate PR description: `aipr --model claude` or `aipr pr --model claude`
 - Generate commit message: `aipr commit --model claude`
-- With custom prompt: `aipr generate --model claude --prompt path/to/prompt.xml`
+- With custom prompt: `aipr pr --model claude --prompt path/to/prompt.xml`
 - Create GitHub PR: `make pr title="Your PR title"`
 
 ## Architecture
@@ -144,10 +144,10 @@ make clean                      # Remove build artifacts
 make build                      # Build distribution packages
 
 # Using AIPR
-aipr generate                   # Generate PR description (default)
+aipr pr                         # Generate PR description (default)
 aipr commit                     # Generate conventional commit message
 aipr commit --debug             # Show analysis without AI call
-aipr generate --debug           # Show PR prompts without AI call
+aipr pr --debug                 # Show PR prompts without AI call
 
 # Pre-commit hooks (after installation)
 pre-commit install              # Install git hooks

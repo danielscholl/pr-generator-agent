@@ -465,14 +465,29 @@ prompt templates:
     # Create subparsers for different commands
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Generate command (default/existing functionality)
-    generate_parser = subparsers.add_parser(
-        "generate", help="Generate PR description from git diff", formatter_class=ColorHelpFormatter
+    # PR command (generate pull request descriptions)
+    pr_parser = subparsers.add_parser(
+        "pr",
+        help="Generate pull request description from git diff",
+        formatter_class=ColorHelpFormatter,
     )
-    generate_parser.add_argument("-t", "--target", help="Target branch for comparison")
-    generate_parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
-    generate_parser.add_argument("--working-tree", action="store_true", help="Use working tree")
-    generate_parser.add_argument(
+    # Add global flags to pr subcommand
+    pr_parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
+    pr_parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Debug mode - show prompts without sending to LLM",
+    )
+    pr_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Verbose mode - show detailed API interaction"
+    )
+    pr_parser.add_argument("-m", "--model", help="AI model to use")
+    # PR-specific arguments
+    pr_parser.add_argument("-t", "--target", help="Target branch for comparison")
+    pr_parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
+    pr_parser.add_argument("--working-tree", action="store_true", help="Use working tree")
+    pr_parser.add_argument(
         "-p",
         "--prompt",
         help=(
@@ -481,12 +496,25 @@ prompt templates:
         ),
     )
 
-    # Commit command (new functionality)
+    # Commit command (generate commit messages)
     commit_parser = subparsers.add_parser(
         "commit",
         help="Generate conventional commit message from staged changes",
         formatter_class=ColorHelpFormatter,
     )
+    # Add global flags to commit subcommand
+    commit_parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
+    commit_parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Debug mode - show prompts without sending to LLM",
+    )
+    commit_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Verbose mode - show detailed API interaction"
+    )
+    commit_parser.add_argument("-m", "--model", help="AI model to use")
+    # Commit-specific arguments
     commit_parser.add_argument(
         "--conventional", action="store_true", help="Generate conventional commit message (default)"
     )
@@ -502,13 +530,13 @@ prompt templates:
     is_old_style = True
     if args is not None:
         # If first arg is a known subcommand or help, it's new style
-        if len(args) > 0 and args[0] in ["generate", "commit", "-h", "--help"]:
+        if len(args) > 0 and args[0] in ["pr", "commit", "-h", "--help"]:
             is_old_style = False
     else:
         # Check sys.argv for subcommands
         import sys
 
-        if len(sys.argv) > 1 and sys.argv[1] in ["generate", "commit", "-h", "--help"]:
+        if len(sys.argv) > 1 and sys.argv[1] in ["pr", "commit", "-h", "--help"]:
             is_old_style = False
 
     if is_old_style:
@@ -520,9 +548,9 @@ prompt templates:
 
             args_list = sys.argv[1:]
 
-        # Separate global args from generate-specific args
+        # Separate global args from pr-specific args
         global_args = []
-        generate_args = []
+        pr_args = []
 
         i = 0
         while i < len(args_list):
@@ -533,11 +561,11 @@ prompt templates:
                 global_args.extend([arg, args_list[i + 1]])
                 i += 1  # Skip the next arg as it's the value
             else:
-                generate_args.append(arg)
+                pr_args.append(arg)
             i += 1
 
-        # Construct args in proper order: global_args + ["generate"] + generate_args
-        args_to_parse = global_args + ["generate"] + generate_args
+        # Construct args in proper order: global_args + ["pr"] + pr_args
+        args_to_parse = global_args + ["pr"] + pr_args
         parsed_args = parser.parse_args(args_to_parse)
     else:
         # Parse normally with subcommands
@@ -545,47 +573,47 @@ prompt templates:
 
     # If command is None after parsing, set default
     if not hasattr(parsed_args, "command") or parsed_args.command is None:
-        # Create a mock args object for generate command with default values
-        class GenerateArgs:
+        # Create a mock args object for pr command with default values
+        class PRArgs:
             def __init__(self):
-                self.command = "generate"
+                self.command = "pr"
                 self.silent = parsed_args.silent
                 self.debug = parsed_args.debug
                 self.verbose = parsed_args.verbose
                 self.model = parsed_args.model
-                # Add generate-specific defaults
+                # Add pr-specific defaults
                 self.target = None
                 self.vulns = False
                 self.working_tree = False
                 self.prompt = None
 
-        # Check if original args had generate-specific flags
+        # Check if original args had pr-specific flags
         if args is not None:
-            generate_args = GenerateArgs()
-            # Parse original args to extract generate-specific flags
+            pr_args = PRArgs()
+            # Parse original args to extract pr-specific flags
             if "--vulns" in args:
-                generate_args.vulns = True
+                pr_args.vulns = True
             if "--working-tree" in args:
-                generate_args.working_tree = True
+                pr_args.working_tree = True
             if "-t" in args:
                 target_idx = args.index("-t")
                 if target_idx + 1 < len(args):
-                    generate_args.target = args[target_idx + 1]
+                    pr_args.target = args[target_idx + 1]
             if "--target" in args:
                 target_idx = args.index("--target")
                 if target_idx + 1 < len(args):
-                    generate_args.target = args[target_idx + 1]
+                    pr_args.target = args[target_idx + 1]
             if "-p" in args:
                 prompt_idx = args.index("-p")
                 if prompt_idx + 1 < len(args):
-                    generate_args.prompt = args[prompt_idx + 1]
+                    pr_args.prompt = args[prompt_idx + 1]
             if "--prompt" in args:
                 prompt_idx = args.index("--prompt")
                 if prompt_idx + 1 < len(args):
-                    generate_args.prompt = args[prompt_idx + 1]
-            return generate_args
+                    pr_args.prompt = args[prompt_idx + 1]
+            return pr_args
         else:
-            return GenerateArgs()
+            return PRArgs()
 
     return parsed_args
 
@@ -665,8 +693,8 @@ def generate_commit_message(
     raise ValueError(f"Unknown provider: {provider}")
 
 
-def handle_generate_command(args):
-    """Handle the generate command (PR description generation)."""
+def handle_pr_command(args):
+    """Handle the pr command (PR description generation)."""
     try:
         repo = git.Repo(os.getcwd(), search_parent_directories=True)
     except git.InvalidGitRepositoryError:
@@ -900,9 +928,11 @@ def main(args=None):
     # Route to appropriate command handler
     if parsed_args.command == "commit":
         handle_commit_command(parsed_args)
+    elif parsed_args.command == "pr":
+        handle_pr_command(parsed_args)
     else:
-        # Default to generate command (for backward compatibility)
-        handle_generate_command(parsed_args)
+        # Default to pr command
+        handle_pr_command(parsed_args)
 
     sys.exit(0)
 
