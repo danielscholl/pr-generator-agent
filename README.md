@@ -34,22 +34,29 @@ export ANTHROPIC_API_KEY="your-api-key"
 # Generate a PR description
 aipr
 
+# Generate a conventional commit message
+aipr commit
+
 # Custom usage - Analyze changes against main branch
 # Include: Vulnerability scanning
 # Use: Azure OpenAI o1-mini model
 # Prompt: meta template
-# Ouptut: Verbose
-aipr -t main --vulns -p meta -m azure/o1-mini -v
+# Output: Verbose
+aipr pr -t main --vulns -p meta -m azure/o1-mini -v
 
 # Inline with merge request creation
-gh pr create -b "$(aipr -s)" -t "feat: New Feature"
+gh pr create -b "$(aipr pr -s)" -t "feat: New Feature"
+
+# Inline with commit creation
+git commit -m "$(aipr commit)"
 ```
 
 ## Key Features
 
 - 🔍 **Smart Detection**: Automatically analyzes working tree changes or compares branches
+- 📝 **Conventional Commits**: Generate conventional commit messages from staged changes
 - 🛡️ **Security First**: Optional vulnerability scanning between branches using Trivy
-- 🤖 **AI-Powered**: Multiple AI providers (Azure OpenAI, OpenAI, Anthropic) for optimal results
+- 🤖 **AI-Powered**: Multiple AI providers (Azure OpenAI, OpenAI, Anthropic, Gemini) for optimal results
 - 🔄 **CI/CD Ready**: Seamless integration with GitLab and GitHub workflows
 
 ## Example Output
@@ -68,6 +75,22 @@ Change Summary:
 
 Security Analysis:
 ✓ No new vulnerabilities introduced
+```
+
+### Commit Message Generation
+
+```bash
+$ git add src/auth.py tests/test_auth.py
+$ aipr commit
+feat(auth): add OAuth2 authentication support
+
+$ git add requirements.txt
+$ aipr commit
+build(deps): update dependencies to latest versions
+
+$ git add README.md docs/guide.md
+$ aipr commit
+docs: update installation and usage documentation
 ```
 
 ## Requirements
@@ -95,18 +118,51 @@ Security Analysis:
 
 ## Usage
 
-### Command Options
+AIPR provides two main commands:
+
+### PR Command (Pull Request Descriptions)
+```bash
+aipr pr [options]  # or just 'aipr' for backward compatibility
+```
+
+**Options:**
 - `-t, --target`: Compare changes with specific branch (default: auto-detects main/master)
 - `-p, --prompt`: Select prompt template (e.g., 'meta')
+- `--vulns`: Include vulnerability scanning
+- `--working-tree`: Use working tree changes
+
+**Global Options:**
 - `-v, --verbose`: Show API interaction details
 - `-d, --debug`: Preview prompts without API calls
 - `-s, --silent`: Output only the description
-- `--vulns`: Include vulnerability scanning
 - `-m, --model`: Specify AI model to use
 
 The tool intelligently detects changes by:
 1. Using staged/unstaged changes if present
 2. Comparing against target branch if working tree is clean
+
+### Commit Command (Conventional Commit Messages)
+```bash
+aipr commit [options]
+```
+
+**Options:**
+- `--conventional`: Generate conventional commit message (default)
+- `--format`: Message format (currently only 'conventional')
+- `--context`: Additional context for the commit message
+
+**Examples:**
+```bash
+# Basic commit message generation
+git add .
+aipr commit
+
+# With additional context
+aipr commit --context "upstream sync"
+
+# Use in automation
+git commit -m "$(aipr commit)"
+```
 
 ## Supported AI Models
 
@@ -114,13 +170,12 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| Anthropic | `claude-3-sonnet` | default |
+| Anthropic | `claude-4` | default |
+| | `claude-4.0` | alias for `claude-4` |
 | | `claude-3.5-sonnet` | latest |
 | | `claude-3.5-haiku` | latest |
 | | `claude-3-haiku` | |
-| | `claude-4` | latest |
-| | `claude-4.0` | alias for `claude-4` |
-| | `claude` | alias for `claude-3-sonnet` |
+| | `claude` | alias for `claude-4` |
 | Azure OpenAI | `azure/o1-mini` | |
 | | `azure/gpt-4o-mini` | |
 | | `azure/gpt-4o` | |

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<prompt>
+    <purpose>
+        Generate a single-line conventional commit message from staged git changes.
+        Follow the conventional commit format: type(scope): description
+        CRITICALLY ANALYZE the actual code changes in the diff to understand what was specifically implemented.
+    </purpose>
+
+    <analysis-strategy>
+        <step>1. Examine the diff content for new functions, classes, methods, and imports</step>
+        <step>2. Identify the PRIMARY purpose by analyzing code additions and modifications</step>
+        <step>3. Look for specific patterns: error handling, new APIs, data structures, algorithms</step>
+        <step>4. Extract the core functionality being added/changed from function names and logic</step>
+        <step>5. Generate a description that reflects the actual implementation details</step>
+    </analysis-strategy>
+
+    <diff-analysis-patterns>
+        <pattern type="new-functions">Look for +def, +function, +const, +class patterns</pattern>
+        <pattern type="new-imports">New imports indicate dependencies and feature scope</pattern>
+        <pattern type="api-endpoints">REST endpoints, route handlers, URL patterns</pattern>
+        <pattern type="data-structures">New models, schemas, interfaces, types</pattern>
+        <pattern type="algorithms">Loops, conditionals, data processing logic</pattern>
+        <pattern type="error-handling">try/catch, error validation, exception handling</pattern>
+        <pattern type="tests">Test methods, assertions, mock setups</pattern>
+        <pattern type="config">Configuration files, environment variables, settings</pattern>
+    </diff-analysis-patterns>
+
+    <instructions>
+        <always>Output ONLY a single line conventional commit message</always>
+        <always>Analyze actual code changes to determine what was specifically implemented</always>
+        <always>Use imperative mood in the description (add, implement, create - not adds, implements)</always>
+        <always>Be specific about what functionality was added (not generic "add functionality")</always>
+        <always>Extract meaningful details from function names, class names, and logic</always>
+        <always>Keep description under 72 characters (GitHub's recommendation)</always>
+        <always>Use lowercase for the first letter of description</always>
+        <always>No trailing period in the description</always>
+        <never>Do not use generic descriptions like "add new functionality"</never>
+        <never>Do not include explanations, reasoning, or additional text</never>
+        <never>Do not use past tense (added, fixed) or present continuous (adding, fixing)</never>
+        <never>Do not include multiple lines or formatting</never>
+        <never>Do not add emojis or special characters</never>
+    </instructions>
+
+    <commit-types>
+        <type name="feat">New feature or functionality (new APIs, components, capabilities)</type>
+        <type name="fix">Bug fix or error correction (resolving issues, fixing logic)</type>
+        <type name="docs">Documentation changes only (README, comments, guides)</type>
+        <type name="style">Code style changes (formatting, missing semicolons, whitespace)</type>
+        <type name="refactor">Code changes that neither fix bugs nor add features (restructuring)</type>
+        <type name="perf">Performance improvements (optimization, caching, efficiency)</type>
+        <type name="test">Adding or updating tests (unit tests, integration tests)</type>
+        <type name="build">Build system or dependency changes (package.json, requirements.txt)</type>
+        <type name="ci">CI/CD configuration changes (workflows, pipelines)</type>
+        <type name="chore">Maintenance tasks, configuration updates</type>
+    </commit-types>
+
+    <scope-guidelines>
+        <guideline>Extract scope from the main area of change (module, component, service)</guideline>
+        <guideline>Use directory names or functional areas (auth, api, cli, parser, etc.)</guideline>
+        <guideline>Scope is optional - omit if change affects multiple areas or is global</guideline>
+        <guideline>Keep scope short and meaningful (max 10 characters)</guideline>
+    </scope-guidelines>
+
+    <detailed-examples>
+        <example analysis="New OAuth class and JWT methods">feat(auth): implement OAuth2 authentication with JWT tokens</example>
+        <example analysis="Fixed null check in user validation logic">fix(api): resolve null pointer in user validation</example>
+        <example analysis="Added CommitAnalyzer class with conventional commit logic">feat(commit): add conventional commit message generation</example>
+        <example analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
+        <example analysis="Enhanced argument parser with subcommands">feat(cli): add subcommand support for generate and commit</example>
+        <example analysis="Updated requirements.txt with new dependencies">build(deps): add tiktoken and anthropic libraries</example>
+    </detailed-examples>
+
+    <analysis-priorities>
+        <priority level="1">feat - New functionality takes precedence (new classes, methods, APIs)</priority>
+        <priority level="2">fix - Bug fixes are high priority (error handling, logic corrections)</priority>
+        <priority level="3">docs - Documentation-only changes</priority>
+        <priority level="4">test - Test-only changes</priority>
+        <priority level="5">build/ci - Infrastructure changes</priority>
+        <priority level="6">chore/refactor/style/perf - Other maintenance</priority>
+    </analysis-priorities>
+
+    <staged-changes>
+        {{staged_changes}}
+    </staged-changes>
+
+    <file-summary>
+        {{file_summary}}
+    </file-summary>
+
+    <context>
+        {{context}}
+    </context>
+
+</prompt>

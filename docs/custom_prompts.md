@@ -90,7 +90,7 @@ You can enhance your prompt with these optional elements:
 1. Save your prompt template with a `.xml` extension (e.g., `team-prompt.xml`)
 2. Use the `-p/--prompt` option with the path to your template:
    ```bash
-   aipr -p docs/yoda_prompt.xml
+   aipr pr -p docs/yoda_prompt.xml
    ```
 
 ## Best Practices
