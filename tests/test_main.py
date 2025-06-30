@@ -34,7 +34,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-3-sonnet-20240229"
+        assert model == "claude-sonnet-4-20250514"
 
     with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
@@ -46,7 +46,7 @@ def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-3-sonnet-20240229")),
+        ("claude", ("anthropic", "claude-sonnet-4-20250514")),
         ("azure", ("azure", "gpt-4o-mini")),
         ("openai", ("openai", "gpt-4o")),
         ("gemini", ("gemini", "gemini-2.5-pro-experimental")),
@@ -61,7 +61,6 @@ def test_detect_provider_and_model_aliases():
         ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
         # Anthropic model aliases
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
-        ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
         ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
         ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
         ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
@@ -119,7 +118,6 @@ def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
         ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
-        ("claude-3-sonnet", ("anthropic", "claude-3-sonnet-20240229")),
         ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
         ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
     ]

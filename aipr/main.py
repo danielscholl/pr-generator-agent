@@ -31,7 +31,7 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     if model:
         # Handle simple aliases first
         if model == "claude":
-            return "anthropic", "claude-3-sonnet-20240229"
+            return "anthropic", "claude-sonnet-4-20250514"
         if model == "azure":
             return "azure", "gpt-4o-mini"
         if model == "openai":
@@ -82,7 +82,6 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         if model.startswith("claude"):
             anthropic_models = {
                 "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-                "claude-3-sonnet": "claude-3-sonnet-20240229",
                 "claude-3.5-haiku": "claude-3-5-haiku-20241022",
                 "claude-3-haiku": "claude-3-haiku-20240307",
                 "claude-4": "claude-sonnet-4-20250514",
@@ -92,7 +91,7 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
 
     # No model specified, check environment for default
     if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-3-sonnet-20240229"
+        return "anthropic", "claude-sonnet-4-20250514"
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
         return "azure", "gpt-4"
     if os.getenv("OPENAI_API_KEY"):
@@ -432,7 +431,7 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {GREEN}claude-3.5-sonnet{ENDC} (default)    Anthropic's Claude 3.5 Sonnet
+  {GREEN}claude-4{ENDC} (default)             Anthropic's Claude 4.0 Sonnet
   {YELLOW}azure/o1-mini{ENDC}                  Azure OpenAI o1-mini
   {YELLOW}azure/gpt-4o{ENDC}                   Azure OpenAI GPT-4
   {YELLOW}gpt-4{ENDC}                          OpenAI GPT-4
@@ -502,20 +501,14 @@ prompt templates:
     # Check if args look like old-style (no subcommand) before parsing
     is_old_style = True
     if args is not None:
-        # If first arg is a known subcommand, it's new style
-        if len(args) > 0 and args[0] in ["generate", "commit"]:
-            is_old_style = False
-        # Don't treat help as old-style
-        elif len(args) > 0 and args[0] in ["-h", "--help"]:
+        # If first arg is a known subcommand or help, it's new style
+        if len(args) > 0 and args[0] in ["generate", "commit", "-h", "--help"]:
             is_old_style = False
     else:
         # Check sys.argv for subcommands
         import sys
 
-        if len(sys.argv) > 1 and sys.argv[1] in ["generate", "commit"]:
-            is_old_style = False
-        # Don't treat help as old-style  
-        elif len(sys.argv) > 1 and sys.argv[1] in ["-h", "--help"]:
+        if len(sys.argv) > 1 and sys.argv[1] in ["generate", "commit", "-h", "--help"]:
             is_old_style = False
 
     if is_old_style:

@@ -287,7 +287,7 @@ class TestCommitMainIntegration:
         mock_analyzer.get_staged_changes.return_value = ("diff content", {"total": 1})
         mock_analyzer_class.return_value = mock_analyzer
 
-        mock_detect.return_value = ("anthropic", "claude-3-sonnet-20240229")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-20250514")
         mock_generate.return_value = "feat: add new functionality"
 
         # Create args mock
@@ -337,7 +337,7 @@ class TestCommitMainIntegration:
         mock_analyzer.generate_conventional_commit.return_value = "feat: fallback message"
         mock_analyzer_class.return_value = mock_analyzer
 
-        mock_detect.return_value = ("anthropic", "claude-3-sonnet-20240229")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-20250514")
         mock_generate.side_effect = Exception("API Error")
 
         args = MagicMock()

@@ -170,13 +170,12 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| Anthropic | `claude-3-sonnet` | default |
+| Anthropic | `claude-4` | default |
+| | `claude-4.0` | alias for `claude-4` |
 | | `claude-3.5-sonnet` | latest |
 | | `claude-3.5-haiku` | latest |
 | | `claude-3-haiku` | |
-| | `claude-4` | latest |
-| | `claude-4.0` | alias for `claude-4` |
-| | `claude` | alias for `claude-3-sonnet` |
+| | `claude` | alias for `claude-4` |
 | Azure OpenAI | `azure/o1-mini` | |
 | | `azure/gpt-4o-mini` | |
 | | `azure/gpt-4o` | |

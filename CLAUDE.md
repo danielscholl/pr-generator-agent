@@ -38,7 +38,7 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 
 ### Provider-Specific Notes
 - **Azure OpenAI**: o1-mini model requires special handling (no temperature parameter, system prompt prepended to user message)
-- **Model Aliases**: "claude" → claude-3-5-sonnet-20241022, "azure" → gpt-4o, "openai" → gpt-4o, "gemini" → gemini-2.0-flash-exp
+- **Model Aliases**: "claude" → claude-sonnet-4-20250514, "azure" → gpt-4o, "openai" → gpt-4o, "gemini" → gemini-2.0-flash-exp
 
 ### Custom Prompts
 **PR Description Prompts** must be XML files with:
