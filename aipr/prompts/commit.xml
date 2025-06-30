@@ -1,18 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <prompt>
     <purpose>
-        Generate a single-line conventional commit message from staged git changes.
+        Generate a conventional commit message (1-3 lines) from git changes.
         Follow the conventional commit format: type(scope): description
+        Add additional detail lines when changes are substantial or complex.
         CRITICALLY ANALYZE the actual code changes in the diff to understand what was specifically implemented.
     </purpose>
 
     <analysis-strategy>
         <step>1. Examine the diff content for new functions, classes, methods, and imports</step>
-        <step>2. Identify the PRIMARY purpose by analyzing code additions and modifications</step>
-        <step>3. Look for specific patterns: error handling, new APIs, data structures, algorithms</step>
-        <step>4. Extract the core functionality being added/changed from function names and logic</step>
-        <step>5. Generate a description that reflects the actual implementation details</step>
+        <step>2. Assess change scope: single feature vs. multiple features/areas</step>
+        <step>3. For single features: identify the PRIMARY purpose and implementation details</step>
+        <step>4. For commit ranges: identify multiple features and summarize the overall scope</step>
+        <step>5. Look for specific patterns: error handling, new APIs, data structures, algorithms</step>
+        <step>6. Generate a description that reflects the appropriate level of detail for the scope</step>
     </analysis-strategy>
+
+    <range-analysis>
+        <detect-scope>
+            <small-change>Few files (1-5), focused functionality → single-feature analysis</small-change>
+            <medium-change>Multiple files (6-15), related changes → enhanced feature analysis</medium-change>
+            <large-change>Many files (15+), diverse changes → multi-feature range analysis</large-change>
+        </detect-scope>
+        <multi-feature-strategy>
+            <step>1. Identify distinct functional areas or features being added/modified</step>
+            <step>2. Determine the most significant or recent feature as the primary type</step>
+            <step>3. Summarize secondary features in additional lines</step>
+            <step>4. Focus on what was accomplished across the range, not individual commits</step>
+        </multi-feature-strategy>
+    </range-analysis>
 
     <diff-analysis-patterns>
         <pattern type="new-functions">Look for +def, +function, +const, +class patterns</pattern>
@@ -26,19 +42,24 @@
     </diff-analysis-patterns>
 
     <instructions>
-        <always>Output ONLY a single line conventional commit message</always>
+        <always>Output a conventional commit message with 1-3 lines providing appropriate detail</always>
+        <always>First line: type(scope): brief description (under 72 characters)</always>
+        <always>Analyze the scope of changes: single feature vs. multiple features/areas</always>
+        <always>For large ranges: summarize multiple features instead of focusing on one</always>
+        <always>Add 1-2 additional lines when changes are substantial or affect multiple areas</always>
         <always>Analyze actual code changes to determine what was specifically implemented</always>
         <always>Use imperative mood in the description (add, implement, create - not adds, implements)</always>
         <always>Be specific about what functionality was added (not generic "add functionality")</always>
         <always>Extract meaningful details from function names, class names, and logic</always>
-        <always>Keep description under 72 characters (GitHub's recommendation)</always>
         <always>Use lowercase for the first letter of description</always>
-        <always>No trailing period in the description</always>
+        <always>No trailing periods in any line</always>
+        <always>Keep additional lines under 80 characters each</always>
         <never>Do not use generic descriptions like "add new functionality"</never>
-        <never>Do not include explanations, reasoning, or additional text</never>
         <never>Do not use past tense (added, fixed) or present continuous (adding, fixing)</never>
-        <never>Do not include multiple lines or formatting</never>
         <never>Do not add emojis or special characters</never>
+        <never>Do not exceed 3 lines total</never>
+        <never>Do not include explanatory text or reasoning outside the commit message</never>
+        <never>For large ranges: do not focus solely on one feature when multiple exist</never>
     </instructions>
 
     <commit-types>
@@ -61,13 +82,39 @@
         <guideline>Keep scope short and meaningful (max 10 characters)</guideline>
     </scope-guidelines>
 
+    <multi-line-guidelines>
+        <single-line>Use single line for simple changes (single file, obvious functionality)</single-line>
+        <two-lines>Use two lines when adding detail improves understanding of the change</two-lines>
+        <three-lines>Use three lines for complex changes affecting multiple areas or components</three-lines>
+        <guideline>Additional lines should provide specific implementation details</guideline>
+        <guideline>Focus on what was implemented, not why or how it works</guideline>
+        <guideline>Each additional line should add meaningful information</guideline>
+    </multi-line-guidelines>
+
     <detailed-examples>
-        <example analysis="New OAuth class and JWT methods">feat(auth): implement OAuth2 authentication with JWT tokens</example>
-        <example analysis="Fixed null check in user validation logic">fix(api): resolve null pointer in user validation</example>
-        <example analysis="Added CommitAnalyzer class with conventional commit logic">feat(commit): add conventional commit message generation</example>
-        <example analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
-        <example analysis="Enhanced argument parser with subcommands">feat(cli): add subcommand support for generate and commit</example>
-        <example analysis="Updated requirements.txt with new dependencies">build(deps): add tiktoken and anthropic libraries</example>
+        <example type="single-feature" analysis="New OAuth class and JWT methods">feat(auth): implement OAuth2 authentication with JWT tokens
+Includes login, logout, and token refresh functionality
+Supports multiple OAuth providers and session management</example>
+        <example type="single-feature" analysis="Fixed null check in user validation logic">fix(api): resolve null pointer in user validation
+Add proper null checks before accessing user properties</example>
+        <example type="single-feature" analysis="Added CommitAnalyzer class with conventional commit logic">feat(commit): add conventional commit message generation
+Includes analysis of staged changes and file categorization
+Supports automatic type detection and scope determination</example>
+        <example type="range-multi-feature" analysis="Commit generation feature + CLI restructuring + documentation">feat: implement commit message generation with CLI improvements
+Add conventional commit analysis and subcommand architecture
+Include documentation updates and model configuration changes</example>
+        <example type="range-multi-feature" analysis="Authentication + API enhancements + test coverage">feat(auth): add OAuth2 with enhanced API validation
+Implement JWT token management and session handling
+Include comprehensive test coverage and error handling</example>
+        <example type="range-single-theme" analysis="Multiple related authentication improvements">feat(auth): enhance authentication system with OAuth2 support
+Add JWT tokens, session management, and security improvements
+Include password reset and multi-factor authentication flows</example>
+        <example type="single-feature" analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
+        <example type="single-feature" analysis="Enhanced argument parser with subcommands">feat(cli): add subcommand support for pr and commit commands
+Includes global flags, argument validation, and help system
+Maintains backward compatibility with existing usage patterns</example>
+        <example type="single-feature" analysis="Updated requirements.txt with new dependencies">build(deps): add tiktoken and anthropic libraries</example>
+        <example type="single-feature" analysis="Simple documentation update">docs: update installation instructions</example>
     </detailed-examples>
 
     <analysis-priorities>

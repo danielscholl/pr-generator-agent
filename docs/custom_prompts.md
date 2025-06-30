@@ -90,7 +90,11 @@ You can enhance your prompt with these optional elements:
 1. Save your prompt template with a `.xml` extension (e.g., `team-prompt.xml`)
 2. Use the `-p/--prompt` option with the path to your template:
    ```bash
+   # Use custom prompt for working tree changes
    aipr pr -p docs/yoda_prompt.xml
+   
+   # Use custom prompt for commit range analysis
+   aipr pr --from abc123 --to def456 -p docs/yoda_prompt.xml
    ```
 
 ## Best Practices

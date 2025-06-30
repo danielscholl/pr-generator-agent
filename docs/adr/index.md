@@ -10,6 +10,7 @@ Architecture Decision Records for AIPR - AI-Powered Pull Request Generator
 | 002 | XML-Based Prompt Template System    | Accepted | 2024-11-20 | [ADR-002](002-xml-prompt-templates.md) |
 | 003 | Git Integration Strategy            | Accepted | 2024-11-25 | [ADR-003](003-git-integration-strategy.md) |
 | 004 | Security Scanning Integration       | Accepted | 2024-12-01 | [ADR-004](004-security-scanning-integration.md) |
+| 005 | CLI Architecture and Command Design | Accepted | 2025-06-30 | [ADR-005](005-cli-architecture-and-command-design.md) |
 
 ## Overview
 
@@ -32,12 +33,19 @@ These Architecture Decision Records document the key design choices made in the 
 **Git Integration (ADR-003)**
 - GitPython library over subprocess calls
 - Smart change detection logic
+- Commit range analysis support
 - Robust error handling
 
 **Security Scanning (ADR-004)**
 - Trivy integration for vulnerability analysis
 - Optional feature with zero impact when disabled
 - Automatic project type detection
+
+**CLI Architecture (ADR-005)**
+- Subcommand-based design (`pr`, `commit`)
+- Global flags with consistent behavior
+- Commit range functionality (`--from`, `--to`)
+- Comprehensive argument validation
 
 ## Contributing
 
