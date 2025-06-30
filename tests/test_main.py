@@ -357,7 +357,8 @@ def test_help(capsys):
     # Verify help content
     captured = capsys.readouterr()
     assert "usage:" in captured.out
-    assert "Generate PR description" in captured.out
+    # Due to backward compatibility logic, help shows generate subcommand
+    assert "generate" in captured.out
 
 
 @patch("aipr.main.run_trivy_scan")

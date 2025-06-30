@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import git
 import tiktoken
 
+from .commit import CommitAnalyzer
 from .prompts import InvalidPromptError, PromptManager
 from .providers import (
     generate_with_anthropic,
@@ -427,7 +428,7 @@ class ColorHelpFormatter(argparse.RawDescriptionHelpFormatter):
 def parse_args(args=None):
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate PR description from git diff",
+        description="AI-powered tool for generating PR descriptions and commit messages",
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
@@ -438,8 +439,11 @@ recommended models:
   {YELLOW}gemini-2.5-pro-experimental{ENDC}    Google's Gemini 2.5 Pro
 
 prompt templates:
-  {BLUE}meta{ENDC}                          Default XML prompt template for merge requests""",
+  {BLUE}meta{ENDC}                          Default XML prompt template for merge requests
+  {BLUE}commit{ENDC}                        XML prompt template for commit messages""",
     )
+
+    # Global options
     parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
     parser.add_argument(
         "-d",
@@ -453,15 +457,23 @@ prompt templates:
         action="store_true",
         help="Verbose mode - show detailed API interaction",
     )
-    parser.add_argument("-t", "--target", help="Target branch for comparison")
-    parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
-    parser.add_argument("--working-tree", action="store_true", help="Use working tree")
     parser.add_argument(
         "-m",
         "--model",
         help="AI model to use (see recommended models below)",
     )
-    parser.add_argument(
+
+    # Create subparsers for different commands
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Generate command (default/existing functionality)
+    generate_parser = subparsers.add_parser(
+        "generate", help="Generate PR description from git diff", formatter_class=ColorHelpFormatter
+    )
+    generate_parser.add_argument("-t", "--target", help="Target branch for comparison")
+    generate_parser.add_argument("--vulns", action="store_true", help="Include vulnerability scan")
+    generate_parser.add_argument("--working-tree", action="store_true", help="Use working tree")
+    generate_parser.add_argument(
         "-p",
         "--prompt",
         help=(
@@ -469,7 +481,120 @@ prompt templates:
             "a path to a custom XML prompt file (e.g., '~/prompts/custom.xml')"
         ),
     )
-    return parser.parse_args(args)
+
+    # Commit command (new functionality)
+    commit_parser = subparsers.add_parser(
+        "commit",
+        help="Generate conventional commit message from staged changes",
+        formatter_class=ColorHelpFormatter,
+    )
+    commit_parser.add_argument(
+        "--conventional", action="store_true", help="Generate conventional commit message (default)"
+    )
+    commit_parser.add_argument(
+        "--format",
+        choices=["conventional"],
+        default="conventional",
+        help="Format for commit message (default: conventional)",
+    )
+    commit_parser.add_argument("--context", help="Additional context for the commit message")
+
+    # Check if args look like old-style (no subcommand) before parsing
+    is_old_style = True
+    if args is not None:
+        # If first arg is a known subcommand, it's new style
+        if len(args) > 0 and args[0] in ["generate", "commit"]:
+            is_old_style = False
+        # Don't treat help as old-style
+        elif len(args) > 0 and args[0] in ["-h", "--help"]:
+            is_old_style = False
+    else:
+        # Check sys.argv for subcommands
+        import sys
+
+        if len(sys.argv) > 1 and sys.argv[1] in ["generate", "commit"]:
+            is_old_style = False
+        # Don't treat help as old-style  
+        elif len(sys.argv) > 1 and sys.argv[1] in ["-h", "--help"]:
+            is_old_style = False
+
+    if is_old_style:
+        # Parse with old-style expectations - need to separate global args from subcommand args
+        if args is not None:
+            args_list = list(args)
+        else:
+            import sys
+
+            args_list = sys.argv[1:]
+
+        # Separate global args from generate-specific args
+        global_args = []
+        generate_args = []
+
+        i = 0
+        while i < len(args_list):
+            arg = args_list[i]
+            if arg in ["-s", "--silent", "-d", "--debug", "-v", "--verbose"]:
+                global_args.append(arg)
+            elif arg in ["-m", "--model"] and i + 1 < len(args_list):
+                global_args.extend([arg, args_list[i + 1]])
+                i += 1  # Skip the next arg as it's the value
+            else:
+                generate_args.append(arg)
+            i += 1
+
+        # Construct args in proper order: global_args + ["generate"] + generate_args
+        args_to_parse = global_args + ["generate"] + generate_args
+        parsed_args = parser.parse_args(args_to_parse)
+    else:
+        # Parse normally with subcommands
+        parsed_args = parser.parse_args(args)
+
+    # If command is None after parsing, set default
+    if not hasattr(parsed_args, "command") or parsed_args.command is None:
+        # Create a mock args object for generate command with default values
+        class GenerateArgs:
+            def __init__(self):
+                self.command = "generate"
+                self.silent = parsed_args.silent
+                self.debug = parsed_args.debug
+                self.verbose = parsed_args.verbose
+                self.model = parsed_args.model
+                # Add generate-specific defaults
+                self.target = None
+                self.vulns = False
+                self.working_tree = False
+                self.prompt = None
+
+        # Check if original args had generate-specific flags
+        if args is not None:
+            generate_args = GenerateArgs()
+            # Parse original args to extract generate-specific flags
+            if "--vulns" in args:
+                generate_args.vulns = True
+            if "--working-tree" in args:
+                generate_args.working_tree = True
+            if "-t" in args:
+                target_idx = args.index("-t")
+                if target_idx + 1 < len(args):
+                    generate_args.target = args[target_idx + 1]
+            if "--target" in args:
+                target_idx = args.index("--target")
+                if target_idx + 1 < len(args):
+                    generate_args.target = args[target_idx + 1]
+            if "-p" in args:
+                prompt_idx = args.index("-p")
+                if prompt_idx + 1 < len(args):
+                    generate_args.prompt = args[prompt_idx + 1]
+            if "--prompt" in args:
+                prompt_idx = args.index("--prompt")
+                if prompt_idx + 1 < len(args):
+                    generate_args.prompt = args[prompt_idx + 1]
+            return generate_args
+        else:
+            return GenerateArgs()
+
+    return parsed_args
 
 
 def detect_default_branch(repo: git.Repo) -> str:
@@ -523,10 +648,32 @@ def generate_description(
     raise ValueError(f"Unknown provider: {provider}")
 
 
-def main(args=None):
-    """Main entry point for AIPR"""
-    args = parse_args(args)
+def generate_commit_message(
+    staged_changes: str,
+    file_summary: Dict[str, Any],
+    provider: str,
+    model: str,
+    verbose: bool = False,
+    context: str = "",
+) -> str:
+    """Generate commit message using the specified provider."""
+    prompt_manager = PromptManager()
+    system_prompt = prompt_manager.get_commit_system_prompt()
+    user_prompt = prompt_manager.get_commit_prompt(staged_changes, file_summary, context)
 
+    if provider == "anthropic":
+        return generate_with_anthropic(user_prompt, None, model, system_prompt, verbose)
+    if provider == "azure":
+        return generate_with_azure_openai(user_prompt, None, model, system_prompt, verbose)
+    if provider == "openai":
+        return generate_with_openai(user_prompt, None, model, system_prompt, verbose)
+    if provider == "gemini":
+        return generate_with_gemini(user_prompt, None, model, system_prompt, verbose)
+    raise ValueError(f"Unknown provider: {provider}")
+
+
+def handle_generate_command(args):
+    """Handle the generate command (PR description generation)."""
     try:
         repo = git.Repo(os.getcwd(), search_parent_directories=True)
     except git.InvalidGitRepositoryError:
@@ -537,7 +684,7 @@ def main(args=None):
         sys.exit(1)
 
     try:
-        prompt_manager = PromptManager(args.prompt)
+        prompt_manager = PromptManager(getattr(args, "prompt", None))
     except InvalidPromptError as e:
         print(f"{RED}Error: {str(e)}{ENDC}")
         sys.exit(1)
@@ -546,14 +693,16 @@ def main(args=None):
 
     # Get the diff based on the state
     diff = ""
-    if args.target == "-" or repo.is_dirty():
+    target = getattr(args, "target", None)
+    working_tree = getattr(args, "working_tree", False)
+
+    if target == "-" or repo.is_dirty() or working_tree:
         # Show working tree changes
         if not args.silent:
             print(f"{BLUE}Showing working tree changes...{ENDC}", file=sys.stderr)
         diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
     else:
         # Compare with target branch
-        target = args.target
         if not target:
             # Try to find default branch
             for branch in ["main", "master", "develop"]:
@@ -575,7 +724,8 @@ def main(args=None):
 
     # Get vulnerability data if requested
     vuln_data = None
-    if args.vulns:
+    vulns = getattr(args, "vulns", False)
+    if vulns:
         if not args.silent:
             print(f"{BLUE}Running vulnerability scan...{ENDC}", file=sys.stderr)
         vuln_data = run_trivy_scan(repo.working_dir, args.silent, False)
@@ -680,6 +830,86 @@ def main(args=None):
     except Exception as e:
         print(f"{RED}Error: {provider.title()} API - {e}{ENDC}", file=sys.stderr)
         sys.exit(1)
+
+
+def handle_commit_command(args):
+    """Handle the commit command (commit message generation)."""
+    try:
+        # Initialize commit analyzer
+        commit_analyzer = CommitAnalyzer()
+
+        # Get staged changes and file summary
+        staged_changes, file_summary = commit_analyzer.get_staged_changes()
+
+        if args.debug:
+            # Show analysis without generating AI response
+            analysis = commit_analyzer.get_analysis_summary()
+            print_header("Commit Analysis Debug")
+            print(f"Detected type: {analysis.get('detected_type', 'unknown')}")
+            print(f"Detected scope: {analysis.get('detected_scope', 'none')}")
+            print(f"Staged files: {analysis.get('staged_files', {}).get('total', 0)}")
+            print("\nStaged changes preview:")
+            print("─" * 40)
+            preview = staged_changes[:500] + "..." if len(staged_changes) > 500 else staged_changes
+            print(preview)
+            sys.exit(0)
+
+        provider, model = detect_provider_and_model(args.model)
+
+        if not args.silent:
+            print(f"{BLUE}Analyzing staged changes...{ENDC}", file=sys.stderr)
+            print(f"Using {provider} ({model})...", file=sys.stderr)
+
+        # Get context if provided
+        context = getattr(args, "context", "") or ""
+
+        try:
+            # Generate commit message using AI
+            commit_message = generate_commit_message(
+                staged_changes, file_summary, provider, model, args.verbose, context
+            )
+
+            # Clean up the response (remove any extra whitespace/newlines)
+            commit_message = commit_message.strip()
+
+            if args.verbose:
+                print("\nGenerated commit message:", file=sys.stderr)
+                print("─" * 40, file=sys.stderr)
+
+            print(commit_message)
+
+        except Exception as e:
+            print(f"{RED}Error generating commit message: {e}{ENDC}", file=sys.stderr)
+
+            # Fallback to local analysis
+            if not args.silent:
+                print(f"{YELLOW}Falling back to local analysis...{ENDC}", file=sys.stderr)
+
+            try:
+                fallback_message = commit_analyzer.generate_conventional_commit(context)
+                print(fallback_message)
+            except Exception as fallback_error:
+                print(f"{RED}Fallback failed: {fallback_error}{ENDC}", file=sys.stderr)
+                sys.exit(1)
+
+    except ValueError as e:
+        print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"{RED}Unexpected error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
+
+
+def main(args=None):
+    """Main entry point for AIPR"""
+    parsed_args = parse_args(args)
+
+    # Route to appropriate command handler
+    if parsed_args.command == "commit":
+        handle_commit_command(parsed_args)
+    else:
+        # Default to generate command (for backward compatibility)
+        handle_generate_command(parsed_args)
 
     sys.exit(0)
 

@@ -23,14 +23,16 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 - Run with coverage: `pytest --cov=aipr`
 
 ### Usage
-- Generate PR description: `aipr --model claude`
-- With custom prompt: `aipr --model claude --custom-prompt path/to/prompt.xml`
+- Generate PR description: `aipr --model claude` or `aipr generate --model claude`
+- Generate commit message: `aipr commit --model claude`
+- With custom prompt: `aipr generate --model claude --prompt path/to/prompt.xml`
 - Create GitHub PR: `make pr title="Your PR title"`
 
 ## Architecture
 
 ### Core Components
-- **`aipr/main.py`**: CLI entry point, orchestrates git operations, provider routing, and Trivy integration
+- **`aipr/main.py`**: CLI entry point with subcommand routing, orchestrates git operations, provider routing, and Trivy integration
+- **`aipr/commit.py`**: Commit message analysis and generation with conventional commit format support
 - **`aipr/providers.py`**: AI provider integrations (Anthropic, OpenAI, Azure OpenAI, Gemini)
 - **`aipr/prompts/prompts.py`**: Prompt management with PromptManager class, handles built-in and custom XML prompts
 
@@ -39,9 +41,14 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 - **Model Aliases**: "claude" → claude-3-5-sonnet-20241022, "azure" → gpt-4o, "openai" → gpt-4o, "gemini" → gemini-2.0-flash-exp
 
 ### Custom Prompts
-Custom prompts must be XML files with:
+**PR Description Prompts** must be XML files with:
 - `<system>` element for system prompt
 - `<user>` element with `<changes-set>` and `<vulnerabilities-set>` placeholders
+
+**Commit Message Prompts** must be XML files with:
+- Built-in commit prompt at `aipr/prompts/commit.xml`
+- Placeholders: `<staged-changes>`, `<file-summary>`, `<context>`
+- Focuses on conventional commit format generation
 
 ## Core Documentation
 
@@ -129,11 +136,18 @@ make test                       # Run all tests with coverage
 make format                     # Auto-format code with black and isort
 make lint                       # Run flake8 linting
 pytest -xvs tests/test_main.py  # Run specific test file, stop on failure
+pytest -xvs tests/test_commit.py  # Run commit-specific tests
 
 # Development workflow
 make install                    # Set up development environment
 make clean                      # Remove build artifacts
 make build                      # Build distribution packages
+
+# Using AIPR
+aipr generate                   # Generate PR description (default)
+aipr commit                     # Generate conventional commit message
+aipr commit --debug             # Show analysis without AI call
+aipr generate --debug           # Show PR prompts without AI call
 
 # Pre-commit hooks (after installation)
 pre-commit install              # Install git hooks

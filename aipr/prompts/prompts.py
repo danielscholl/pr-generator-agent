@@ -5,7 +5,7 @@ import json
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Union
+from typing import Any, Dict, Union
 
 
 class InvalidPromptError(Exception):
@@ -188,3 +188,75 @@ class PromptManager:
             )
 
         return "\n".join(prompt)
+
+    def get_commit_prompt(
+        self, staged_changes: str, file_summary: Dict[str, Any], context: str = ""
+    ) -> str:
+        """Get the commit prompt with staged changes and file summary."""
+        # Load the commit prompt template
+        commit_prompt_name = "commit"
+
+        try:
+            with (
+                importlib.resources.files("aipr.prompts")
+                .joinpath(f"{commit_prompt_name}.xml")
+                .open("r")
+            ) as f:
+                xml_content = f.read()
+
+            root = ET.fromstring(xml_content)  # nosec B314 - parsing trusted local XML content
+
+            # Find the required elements
+            staged_changes_elem = root.find(".//staged-changes")
+            file_summary_elem = root.find(".//file-summary")
+            context_elem = root.find(".//context")
+
+            # Update the content
+            if staged_changes_elem is not None:
+                staged_changes_elem.text = "\n" + staged_changes + "\n"
+
+            if file_summary_elem is not None:
+                file_summary_text = (
+                    f"Files changed: {file_summary.get('total', 0)}\n"
+                    f"Added: {file_summary.get('added', 0)}, "
+                    f"Modified: {file_summary.get('modified', 0)}, "
+                    f"Deleted: {file_summary.get('deleted', 0)}\n"
+                )
+                file_summary_text += "Files:\n"
+                for file_info in file_summary.get("files", []):
+                    file_summary_text += f"  {file_info['status']} {file_info['path']}\n"
+                file_summary_elem.text = "\n" + file_summary_text + "\n"
+
+            if context_elem is not None:
+                if context:
+                    context_elem.text = "\n" + context + "\n"
+                else:
+                    context_elem.text = ""
+
+            # Convert to string while preserving formatting and remove XML declaration
+            xml_str = ET.tostring(root, encoding="unicode", method="xml")
+            if xml_str.startswith("<?xml"):
+                xml_str = xml_str[xml_str.find("?>") + 2 :]
+
+            return xml_str.strip()
+
+        except Exception as e:
+            raise InvalidPromptError(f"Could not load commit prompt: {e}")
+
+    def get_commit_system_prompt(self) -> str:
+        """Get the system prompt for commit message generation."""
+        return (
+            "You are an expert code analyst and conventional commit message generator.\n\n"
+            "Your task: Analyze the provided git diff and generate a precise conventional commit message.\n\n"
+            "CRITICAL ANALYSIS REQUIREMENTS:\n"
+            "1. Read the diff content carefully - look for new functions, classes, methods, imports\n"
+            "2. Identify the PRIMARY functionality being implemented from the code changes\n"
+            "3. Extract specific details from function names, class names, and implementation logic\n"
+            "4. Determine the most accurate commit type based on actual code changes\n"
+            "5. Generate a description that reflects what was specifically implemented\n\n"
+            "OUTPUT FORMAT: type(scope): description\n"
+            "- type: feat/fix/docs/test/build/ci/chore/refactor/style/perf\n"
+            "- scope: optional, derived from the main area of change\n"
+            "- description: imperative mood, specific to the implementation\n\n"
+            "RESPOND WITH ONLY THE COMMIT MESSAGE - NO EXPLANATIONS OR ADDITIONAL TEXT."
+        )
