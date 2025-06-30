@@ -102,10 +102,10 @@ def compare_vulnerabilities(base_vulns: List[dict], head_vulns: List[dict]) -> d
 ## CLI Integration
 ```bash
 # Enable vulnerability scanning
-aipr --vulns
+aipr pr --vulns
 
 # Works with all providers
-aipr --model azure --vulns
+aipr pr --model azure --vulns
 
 # Appears in PR description only if enabled
 ```

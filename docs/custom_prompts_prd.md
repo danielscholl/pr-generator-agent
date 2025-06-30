@@ -55,7 +55,7 @@ The prompt system should support the following capabilities:
 
 ### Built-in Prompts
 - AIPR should ship with a set of built-in, tested prompt templates
-- Built-in prompts should be accessible by name (e.g., `aipr -p meta`)
+- Built-in prompts should be accessible by name (e.g., `aipr pr -p meta`)
 - The system should maintain a registry of available built-in prompts
 - Built-in prompts should be versioned with the package
 
@@ -67,8 +67,8 @@ The prompt system should support the following capabilities:
 
 ### Command-Line Interface
 - The `-p/--prompt` flag should accept either:
-  - A built-in prompt name (e.g., `aipr -p meta`)
-  - A path to a custom prompt file (e.g., `aipr -p ~/prompts/custom.xml`)
+  - A built-in prompt name (e.g., `aipr pr -p meta`)
+  - A path to a custom prompt file (e.g., `aipr pr -p ~/prompts/custom.xml`)
 - When an invalid prompt is specified, the system should list available built-in prompts
 - Help text should clearly explain both usage patterns
 
