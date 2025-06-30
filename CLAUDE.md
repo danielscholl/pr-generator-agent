@@ -25,6 +25,8 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 ### Usage
 - Generate PR description: `aipr --model claude` or `aipr pr --model claude`
 - Generate commit message: `aipr commit --model claude`
+- Generate PR description from commit range: `aipr pr --from abc123 --to def456 --model claude`
+- Generate commit message from commit range: `aipr commit --from v1.0.0 --model claude`
 - With custom prompt: `aipr pr --model claude --prompt path/to/prompt.xml`
 - Create GitHub PR: `make pr title="Your PR title"`
 
@@ -38,7 +40,7 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 
 ### Provider-Specific Notes
 - **Azure OpenAI**: o1-mini model requires special handling (no temperature parameter, system prompt prepended to user message)
-- **Model Aliases**: "claude" → claude-sonnet-4-20250514, "azure" → gpt-4o, "openai" → gpt-4o, "gemini" → gemini-2.0-flash-exp
+- **Model Aliases**: "claude" → claude-sonnet-4-20250514, "azure" → gpt-4o-mini, "openai" → gpt-4o, "gemini" → gemini-2.5-pro-experimental
 
 ### Custom Prompts
 **PR Description Prompts** must be XML files with:
@@ -146,6 +148,8 @@ make build                      # Build distribution packages
 # Using AIPR
 aipr pr                         # Generate PR description (default)
 aipr commit                     # Generate conventional commit message
+aipr pr --from abc123 --to def456  # Generate PR description from commit range
+aipr commit --from v1.0.0       # Generate commit message from commit to HEAD
 aipr commit --debug             # Show analysis without AI call
 aipr pr --debug                 # Show PR prompts without AI call
 

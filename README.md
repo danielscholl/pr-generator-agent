@@ -37,6 +37,12 @@ aipr
 # Generate a conventional commit message
 aipr commit
 
+# Generate PR description from commit range
+aipr pr --from abc123 --to def456
+
+# Generate commit message from commit range
+aipr commit --from v1.0.0
+
 # Custom usage - Analyze changes against main branch
 # Include: Vulnerability scanning
 # Use: Azure OpenAI o1-mini model
@@ -53,8 +59,9 @@ git commit -m "$(aipr commit)"
 
 ## Key Features
 
-- 🔍 **Smart Detection**: Automatically analyzes working tree changes or compares branches
-- 📝 **Conventional Commits**: Generate conventional commit messages from staged changes
+- 🔍 **Smart Detection**: Automatically analyzes working tree changes, compares branches, or analyzes commit ranges
+- 📝 **Conventional Commits**: Generate conventional commit messages from staged changes or commit ranges
+- 📊 **Commit Range Analysis**: Generate descriptions and commit messages from any commit range (SHA to SHA)
 - 🛡️ **Security First**: Optional vulnerability scanning between branches using Trivy
 - 🤖 **AI-Powered**: Multiple AI providers (Azure OpenAI, OpenAI, Anthropic, Gemini) for optimal results
 - 🔄 **CI/CD Ready**: Seamless integration with GitLab and GitHub workflows
@@ -130,6 +137,8 @@ aipr pr [options]  # or just 'aipr' for backward compatibility
 - `-p, --prompt`: Select prompt template (e.g., 'meta')
 - `--vulns`: Include vulnerability scanning
 - `--working-tree`: Use working tree changes
+- `--from`: Starting commit for range analysis (SHA, branch, tag, etc.)
+- `--to`: Ending commit for range analysis (defaults to HEAD, requires --from)
 
 **Global Options:**
 - `-v, --verbose`: Show API interaction details
@@ -150,12 +159,20 @@ aipr commit [options]
 - `--conventional`: Generate conventional commit message (default)
 - `--format`: Message format (currently only 'conventional')
 - `--context`: Additional context for the commit message
+- `--from`: Starting commit for range analysis (SHA, branch, tag, etc.)
+- `--to`: Ending commit for range analysis (defaults to HEAD, requires --from)
 
 **Examples:**
 ```bash
-# Basic commit message generation
+# Basic commit message generation from staged changes
 git add .
 aipr commit
+
+# Generate commit message from commit range
+aipr commit --from abc123 --to def456
+
+# Generate commit message from specific commit to HEAD
+aipr commit --from abc123
 
 # With additional context
 aipr commit --context "upstream sync"
@@ -170,23 +187,25 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| Anthropic | `claude-4` | default |
+| Anthropic | `claude-4` | default (maps to `claude-sonnet-4-20250514`) |
 | | `claude-4.0` | alias for `claude-4` |
-| | `claude-3.5-sonnet` | latest |
-| | `claude-3.5-haiku` | latest |
-| | `claude-3-haiku` | |
+| | `claude-3.5-sonnet` | maps to `claude-3-5-sonnet-20241022` |
+| | `claude-3.5-haiku` | maps to `claude-3-5-haiku-20241022` |
+| | `claude-3-haiku` | maps to `claude-3-haiku-20240307` |
 | | `claude` | alias for `claude-4` |
 | Azure OpenAI | `azure/o1-mini` | |
-| | `azure/gpt-4o-mini` | |
 | | `azure/gpt-4o` | |
+| | `azure/gpt-4o-mini` | |
+| | `azure/gpt-4` | alias for `azure/gpt-4o` |
 | | `azure` | alias for `azure/gpt-4o-mini` |
-| OpenAI | `gpt-4o` | |
+| OpenAI | `gpt-4o` | maps to `gpt-4` |
 | | `gpt-4-turbo` | |
 | | `gpt-3.5-turbo` | |
+| | `gpt4` | alias for `gpt-4` |
 | | `openai` | alias for `gpt-4o` |
-| Google Gemini | `gemini-1.5-pro` | default for Gemini |
+| Google Gemini | `gemini-1.5-pro` | |
 | | `gemini-1.5-flash` | |
-| | `gemini-2.5-pro-experimental` | maps to `gemini-2.5-pro-exp-03-25` |
+| | `gemini-2.5-pro-experimental` | maps to `gemini-2.5-pro-exp-03-25`, default for Gemini |
 | | `gemini` | alias for `gemini-2.5-pro-experimental` |
 
 ## Custom Prompts

@@ -297,6 +297,8 @@ class TestCommitMainIntegration:
         args.verbose = False
         args.model = None
         args.context = ""
+        args.from_commit = None
+        args.to_commit = None
 
         # Test the function
         with patch("sys.exit") as mock_exit:
@@ -318,6 +320,8 @@ class TestCommitMainIntegration:
         args = MagicMock()
         args.debug = False
         args.silent = True
+        args.from_commit = None
+        args.to_commit = None
 
         # Test the function
         with patch("sys.exit") as mock_exit:
@@ -346,6 +350,8 @@ class TestCommitMainIntegration:
         args.verbose = False
         args.model = None
         args.context = ""
+        args.from_commit = None
+        args.to_commit = None
 
         # Test the function
         with patch("sys.exit") as mock_exit:
@@ -375,6 +381,8 @@ class TestCommitMainIntegration:
         args.silent = True
         args.verbose = False
         args.context = ""
+        args.from_commit = None
+        args.to_commit = None
 
         # Test the function
         with patch("sys.exit") as mock_exit:

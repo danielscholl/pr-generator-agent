@@ -468,7 +468,7 @@ prompt templates:
     # PR command (generate pull request descriptions)
     pr_parser = subparsers.add_parser(
         "pr",
-        help="Generate pull request description from git diff",
+        help="Generate pull request description from git diff or commit range",
         formatter_class=ColorHelpFormatter,
     )
     # Add global flags to pr subcommand
@@ -495,11 +495,21 @@ prompt templates:
             "a path to a custom XML prompt file (e.g., '~/prompts/custom.xml')"
         ),
     )
+    pr_parser.add_argument(
+        "--from",
+        dest="from_commit",
+        help="Starting commit for range analysis (SHA, branch, tag, etc.)",
+    )
+    pr_parser.add_argument(
+        "--to",
+        dest="to_commit",
+        help="Ending commit for range analysis (defaults to HEAD, requires --from)",
+    )
 
     # Commit command (generate commit messages)
     commit_parser = subparsers.add_parser(
         "commit",
-        help="Generate conventional commit message from staged changes",
+        help="Generate conventional commit message from staged changes or commit range",
         formatter_class=ColorHelpFormatter,
     )
     # Add global flags to commit subcommand
@@ -525,6 +535,16 @@ prompt templates:
         help="Format for commit message (default: conventional)",
     )
     commit_parser.add_argument("--context", help="Additional context for the commit message")
+    commit_parser.add_argument(
+        "--from",
+        dest="from_commit",
+        help="Starting commit for range analysis (SHA, branch, tag, etc.)",
+    )
+    commit_parser.add_argument(
+        "--to",
+        dest="to_commit",
+        help="Ending commit for range analysis (defaults to HEAD, requires --from)",
+    )
 
     # Check if args look like old-style (no subcommand) before parsing
     is_old_style = True
@@ -629,6 +649,134 @@ def detect_default_branch(repo: git.Repo) -> str:
     raise Exception("Could not detect default branch")
 
 
+def get_commit_range_diff(
+    repo: git.Repo, from_commit: str, to_commit: str = "HEAD"
+) -> Tuple[str, Dict[str, any]]:
+    """Get diff and file statistics for a commit range.
+
+    Args:
+        repo: Git repository object
+        from_commit: Starting commit (SHA, branch name, tag, etc.)
+        to_commit: Ending commit (defaults to HEAD)
+
+    Returns:
+        Tuple of (diff_content, file_stats)
+
+    Raises:
+        ValueError: If commits don't exist or range is invalid
+    """
+    try:
+        # Validate that both commits exist
+        repo.git.cat_file("-e", f"{from_commit}^{{commit}}")
+        repo.git.cat_file("-e", f"{to_commit}^{{commit}}")
+
+        # Get the diff between commits
+        diff_content = repo.git.diff(f"{from_commit}..{to_commit}")
+
+        if not diff_content.strip():
+            raise ValueError(f"No changes found between {from_commit} and {to_commit}")
+
+        # Get file statistics
+        name_status = repo.git.diff(f"{from_commit}..{to_commit}", "--name-status")
+
+        files = []
+        added = modified = deleted = 0
+
+        if name_status.strip():
+            for line in name_status.split("\n"):
+                if line.strip():
+                    parts = line.split("\t", 1)
+                    if len(parts) == 2:
+                        status, filepath = parts
+                        files.append({"status": status, "path": filepath})
+
+                        if status == "A":
+                            added += 1
+                        elif status == "M":
+                            modified += 1
+                        elif status == "D":
+                            deleted += 1
+
+        file_stats = {
+            "files": files,
+            "added": added,
+            "modified": modified,
+            "deleted": deleted,
+            "total": len(files),
+        }
+
+        return diff_content, file_stats
+
+    except git.exc.GitCommandError as e:
+        if "does not exist" in str(e) or "bad revision" in str(e):
+            raise ValueError(f"Invalid commit reference: {from_commit} or {to_commit}")
+        else:
+            raise ValueError(f"Failed to get commit range diff: {e}")
+
+
+def validate_commit_range_args(args, command_name: str) -> None:
+    """Validate commit range arguments for pr and commit commands.
+
+    Args:
+        args: Parsed command line arguments
+        command_name: Name of the command ("pr" or "commit") for error messages
+
+    Raises:
+        ValueError: If argument combination is invalid
+    """
+    from_commit = getattr(args, "from_commit", None)
+    to_commit = getattr(args, "to_commit", None)
+
+    # Rule: --to can only be used with --from
+    if to_commit and not from_commit:
+        raise ValueError("--to can only be used together with --from")
+
+    # For pr command: check mutual exclusivity
+    if command_name == "pr":
+        target = getattr(args, "target", None)
+        working_tree = getattr(args, "working_tree", False)
+
+        if from_commit and target:
+            raise ValueError("--from/--to cannot be used with --target (mutually exclusive)")
+
+        if from_commit and working_tree:
+            raise ValueError("--from/--to cannot be used with --working-tree (mutually exclusive)")
+
+
+def determine_pr_mode(args) -> str:
+    """Determine which mode the pr command should use.
+
+    Returns:
+        Mode string: "range", "working_tree", "target", or "auto"
+    """
+    from_commit = getattr(args, "from_commit", None)
+    working_tree = getattr(args, "working_tree", False)
+    target = getattr(args, "target", None)
+
+    if from_commit:
+        return "range"
+    elif working_tree or target == "-":
+        return "working_tree"  # "-" means working tree mode
+    elif target:
+        return "target"
+    else:
+        return "auto"
+
+
+def determine_commit_mode(args) -> str:
+    """Determine which mode the commit command should use.
+
+    Returns:
+        Mode string: "range" or "staged"
+    """
+    from_commit = getattr(args, "from_commit", None)
+
+    if from_commit:
+        return "range"
+    else:
+        return "staged"
+
+
 def get_vulnerability_data() -> Optional[str]:
     """Get vulnerability scan data using trivy."""
     try:
@@ -710,38 +858,76 @@ def handle_pr_command(args):
         print(f"{RED}Error: {str(e)}{ENDC}")
         sys.exit(1)
 
+    # Validate arguments
+    try:
+        validate_commit_range_args(args, "pr")
+    except ValueError as e:
+        print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
+
     provider, model = detect_provider_and_model(args.model)
 
-    # Get the diff based on the state
+    # Determine which mode to use and get the diff
+    mode = determine_pr_mode(args)
     diff = ""
-    target = getattr(args, "target", None)
-    working_tree = getattr(args, "working_tree", False)
 
-    if target == "-" or repo.is_dirty() or working_tree:
-        # Show working tree changes
-        if not args.silent:
-            print(f"{BLUE}Showing working tree changes...{ENDC}", file=sys.stderr)
-        diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
-    else:
-        # Compare with target branch
-        if not target:
-            # Try to find default branch
-            for branch in ["main", "master", "develop"]:
-                if branch in [h.name for h in repo.heads]:
-                    target = branch
-                    break
+    try:
+        if mode == "range":
+            # Commit range mode
+            from_commit = args.from_commit
+            to_commit = getattr(args, "to_commit", None) or "HEAD"
 
-        if target:
+            if not args.silent:
+                print(
+                    f"{BLUE}Analyzing commit range {from_commit}..{to_commit}...{ENDC}",
+                    file=sys.stderr,
+                )
+
+            diff, _ = get_commit_range_diff(repo, from_commit, to_commit)
+
+        elif mode == "working_tree":
+            # Working tree changes
+            if not args.silent:
+                print(f"{BLUE}Showing working tree changes...{ENDC}", file=sys.stderr)
+            diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
+
+        elif mode == "target":
+            # Target branch comparison
+            target = args.target
             if not args.silent:
                 print(f"{BLUE}Comparing with {target}...{ENDC}", file=sys.stderr)
             diff = repo.git.diff(f"{target}...{repo.active_branch.name}")
-        else:
-            print(f"{YELLOW}No suitable target branch found.{ENDC}", file=sys.stderr)
-            sys.exit(1)
 
-    if not diff.strip():
-        print("No changes found in the Git repository.", file=sys.stderr)
-        sys.exit(0)
+        else:  # mode == "auto"
+            # Auto-detect mode (existing behavior)
+            if repo.is_dirty():
+                # Show working tree changes
+                if not args.silent:
+                    print(f"{BLUE}Showing working tree changes...{ENDC}", file=sys.stderr)
+                diff = repo.git.diff("HEAD", "--cached") + "\n" + repo.git.diff()
+            else:
+                # Try to find default branch
+                target = None
+                for branch in ["main", "master", "develop"]:
+                    if branch in [h.name for h in repo.heads]:
+                        target = branch
+                        break
+
+                if target:
+                    if not args.silent:
+                        print(f"{BLUE}Comparing with {target}...{ENDC}", file=sys.stderr)
+                    diff = repo.git.diff(f"{target}...{repo.active_branch.name}")
+                else:
+                    print(f"{YELLOW}No suitable target branch found.{ENDC}", file=sys.stderr)
+                    sys.exit(1)
+
+        if not diff.strip():
+            print("No changes found in the Git repository.", file=sys.stderr)
+            sys.exit(0)
+
+    except ValueError as e:
+        print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
 
     # Get vulnerability data if requested
     vuln_data = None
@@ -856,29 +1042,66 @@ def handle_pr_command(args):
 def handle_commit_command(args):
     """Handle the commit command (commit message generation)."""
     try:
-        # Initialize commit analyzer
-        commit_analyzer = CommitAnalyzer()
+        # Validate arguments
+        validate_commit_range_args(args, "commit")
+    except ValueError as e:
+        print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
 
-        # Get staged changes and file summary
-        staged_changes, file_summary = commit_analyzer.get_staged_changes()
+    try:
+        # Determine mode and get changes/file summary
+        mode = determine_commit_mode(args)
 
-        if args.debug:
-            # Show analysis without generating AI response
-            analysis = commit_analyzer.get_analysis_summary()
-            print_header("Commit Analysis Debug")
-            print(f"Detected type: {analysis.get('detected_type', 'unknown')}")
-            print(f"Detected scope: {analysis.get('detected_scope', 'none')}")
-            print(f"Staged files: {analysis.get('staged_files', {}).get('total', 0)}")
-            print("\nStaged changes preview:")
-            print("─" * 40)
-            preview = staged_changes[:500] + "..." if len(staged_changes) > 500 else staged_changes
-            print(preview)
-            sys.exit(0)
+        if mode == "range":
+            # Commit range mode
+            repo = git.Repo(os.getcwd(), search_parent_directories=True)
+            from_commit = args.from_commit
+            to_commit = getattr(args, "to_commit", None) or "HEAD"
+
+            if not args.silent:
+                print(
+                    f"{BLUE}Analyzing commit range {from_commit}..{to_commit}...{ENDC}",
+                    file=sys.stderr,
+                )
+
+            changes, file_summary = get_commit_range_diff(repo, from_commit, to_commit)
+
+            if args.debug:
+                print_header("Commit Range Analysis Debug")
+                print(f"Range: {from_commit}..{to_commit}")
+                print(f"Files changed: {file_summary.get('total', 0)}")
+                print(
+                    f"Added: {file_summary.get('added', 0)}, Modified: {file_summary.get('modified', 0)}, Deleted: {file_summary.get('deleted', 0)}"
+                )
+                print("\nCommit range changes preview:")
+                print("─" * 40)
+                preview = changes[:500] + "..." if len(changes) > 500 else changes
+                print(preview)
+                sys.exit(0)
+
+        else:  # mode == "staged"
+            # Staged changes mode (existing behavior)
+            commit_analyzer = CommitAnalyzer()
+            changes, file_summary = commit_analyzer.get_staged_changes()
+
+            if args.debug:
+                # Show analysis without generating AI response
+                analysis = commit_analyzer.get_analysis_summary()
+                print_header("Staged Changes Analysis Debug")
+                print(f"Detected type: {analysis.get('detected_type', 'unknown')}")
+                print(f"Detected scope: {analysis.get('detected_scope', 'none')}")
+                print(f"Staged files: {analysis.get('staged_files', {}).get('total', 0)}")
+                print("\nStaged changes preview:")
+                print("─" * 40)
+                preview = changes[:500] + "..." if len(changes) > 500 else changes
+                print(preview)
+                sys.exit(0)
 
         provider, model = detect_provider_and_model(args.model)
 
         if not args.silent:
-            print(f"{BLUE}Analyzing staged changes...{ENDC}", file=sys.stderr)
+            mode_text = "commit range" if mode == "range" else "staged changes"
+            print(f"{BLUE}Analyzing {mode_text}...{ENDC}", file=sys.stderr)
             print(f"Using {provider} ({model})...", file=sys.stderr)
 
         # Get context if provided
@@ -887,7 +1110,7 @@ def handle_commit_command(args):
         try:
             # Generate commit message using AI
             commit_message = generate_commit_message(
-                staged_changes, file_summary, provider, model, args.verbose, context
+                changes, file_summary, provider, model, args.verbose, context
             )
 
             # Clean up the response (remove any extra whitespace/newlines)
@@ -902,15 +1125,24 @@ def handle_commit_command(args):
         except Exception as e:
             print(f"{RED}Error generating commit message: {e}{ENDC}", file=sys.stderr)
 
-            # Fallback to local analysis
-            if not args.silent:
-                print(f"{YELLOW}Falling back to local analysis...{ENDC}", file=sys.stderr)
+            # Fallback to local analysis only for staged changes mode
+            if mode == "staged":
+                if not args.silent:
+                    print(f"{YELLOW}Falling back to local analysis...{ENDC}", file=sys.stderr)
 
-            try:
-                fallback_message = commit_analyzer.generate_conventional_commit(context)
-                print(fallback_message)
-            except Exception as fallback_error:
-                print(f"{RED}Fallback failed: {fallback_error}{ENDC}", file=sys.stderr)
+                try:
+                    commit_analyzer = CommitAnalyzer()
+                    fallback_message = commit_analyzer.generate_conventional_commit(context)
+                    print(fallback_message)
+                except Exception as fallback_error:
+                    print(f"{RED}Fallback failed: {fallback_error}{ENDC}", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                # No fallback for commit range mode
+                print(
+                    f"{RED}AI generation failed for commit range mode. Local analysis not available for ranges.{ENDC}",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
     except ValueError as e:
