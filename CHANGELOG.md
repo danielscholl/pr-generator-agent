@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.2.0...v1.3.0) (2025-06-30)
+
+
+### Features
+
+* **commit:** add conventional commit message generation ([0b5a36a](https://github.com/danielscholl/pr-generator-agent/commit/0b5a36af59687403a2cff44f90bbc7144030815f))
+* improve CLI UX with pr command and fix global flags ([b9c4c12](https://github.com/danielscholl/pr-generator-agent/commit/b9c4c12f11172ffd9b01564dadfea75efd7b0e07))
+* update default model to claude-4 and remove claude-3-sonnet ([b89780b](https://github.com/danielscholl/pr-generator-agent/commit/b89780b744a00d583a021530d5c57aedc705accf))
+
+
+### Documentation
+
+* update remaining documentation for pr command migration ([8627a7b](https://github.com/danielscholl/pr-generator-agent/commit/8627a7b2e5963e2a060d1fe667f2238acc3e7eca))
+
 ## [1.2.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.1.0...v1.2.0) (2025-05-28)
 
 
