@@ -20,6 +20,33 @@ from aipr.prompts import PromptManager
 from aipr.providers import generate_with_anthropic, generate_with_azure_openai, generate_with_openai
 
 
+# Helper to clear all provider keys except the specified one
+def clear_other_provider_keys(keep_provider=None):
+    """Clear all provider API keys except the one specified."""
+    env_dict = {
+        "AZURE_API_KEY": "",
+        "AZURE_OPENAI_ENDPOINT": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "",
+        "GEMINI_API_KEY": "",
+        "XAI_API_KEY": "",
+    }
+
+    if keep_provider == "anthropic":
+        env_dict["ANTHROPIC_API_KEY"] = "test-key"
+    elif keep_provider == "azure":
+        env_dict["AZURE_API_KEY"] = "test-key"
+        env_dict["AZURE_OPENAI_ENDPOINT"] = "https://test.openai.azure.com"
+    elif keep_provider == "openai":
+        env_dict["OPENAI_API_KEY"] = "test-key"
+    elif keep_provider == "gemini":
+        env_dict["GEMINI_API_KEY"] = "test-key"
+    elif keep_provider == "xai":
+        env_dict["XAI_API_KEY"] = "test-key"
+
+    return env_dict
+
+
 def test_version():
     """Test that version is properly set"""
     from aipr import __version__
@@ -31,44 +58,72 @@ def test_version():
 # Model Detection Tests
 def test_detect_provider_and_model_defaults():
     """Test default model detection"""
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    # Test with Azure key first (highest priority as default)
+    with patch.dict(
+        "os.environ",
+        {"AZURE_API_KEY": "test-key", "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com"},
+        clear=True,
+    ):
+        provider, model = detect_provider_and_model(None)
+        assert provider == "azure"
+        assert model == "gpt-5-nano"
+
+    # Test with Anthropic key
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-sonnet-4-20250514"
+        assert model == "claude-sonnet-4-5-20250929"
 
+    # Test with OpenAI key
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
+        provider, model = detect_provider_and_model(None)
+        assert provider == "openai"
+        assert model == "gpt-5"
+
+    # Test with Gemini key
     with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "gemini"
-        assert model == "gemini-2.5-pro-experimental"
+        assert model == "gemini-2.5-flash"
+
+    # Test with XAI key (lowest priority)
+    with patch.dict("os.environ", {"XAI_API_KEY": "test-key"}, clear=True):
+        provider, model = detect_provider_and_model(None)
+        assert provider == "xai"
+        assert model == "grok-code-fast-1"
 
 
 def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-sonnet-4-20250514")),
-        ("azure", ("azure", "gpt-4o-mini")),
-        ("openai", ("openai", "gpt-4o")),
-        ("gemini", ("gemini", "gemini-2.5-pro-experimental")),
-        # Azure model aliases
-        ("azure/gpt-4", ("azure", "gpt-4o")),
-        ("azure/gpt-4o", ("azure", "gpt-4o")),
-        ("azure/gpt-4o-mini", ("azure", "gpt-4o-mini")),
-        ("azure/o1-mini", ("azure", "o1-mini")),
-        # OpenAI model aliases
-        ("gpt-4o", ("openai", "gpt-4")),
-        ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
-        ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
-        # Anthropic model aliases
-        ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
-        ("claude-3.5-haiku", ("anthropic", "claude-3-5-haiku-20241022")),
-        ("claude-3-haiku", ("anthropic", "claude-3-haiku-20240307")),
-        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
-        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
-        # Gemini model aliases
-        ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
-        ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
-        ("gemini-2.5-pro-experimental", ("gemini", "gemini-2.5-pro-exp-03-25")),
+        ("claude", ("anthropic", "claude-sonnet-4-5-20250929")),
+        ("opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("claude-opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("azure", ("azure", "gpt-5-nano")),  # Updated default
+        ("openai", ("openai", "gpt-5")),  # Updated default
+        ("gemini", ("gemini", "gemini-2.5-flash")),  # Updated default
+        ("grok", ("xai", "grok-code-fast-1")),  # New provider
+        ("xai", ("xai", "grok-code-fast-1")),  # New provider
+        # Azure model aliases - only new models
+        ("azure/gpt-4.1-nano", ("azure", "gpt-4.1-nano")),
+        ("azure/gpt-5-chat", ("azure", "gpt-5-chat")),
+        ("azure/gpt-5-mini", ("azure", "gpt-5-mini")),
+        ("azure/gpt-5-nano", ("azure", "gpt-5-nano")),
+        # OpenAI model aliases - only GPT-5 series
+        ("gpt-5", ("openai", "gpt-5")),
+        ("gpt-5-mini", ("openai", "gpt-5-mini")),
+        ("gpt-5-nano", ("openai", "gpt-5-nano")),
+        # Anthropic models - direct names only
+        ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
+        ("claude-sonnet-4-20250514", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
+        # Gemini model aliases - only 2.5 series
+        ("gemini-2.5-pro", ("gemini", "gemini-2.5-pro")),
+        ("gemini-2.5-flash", ("gemini", "gemini-2.5-flash")),
+        ("gemini-2.5-flash-lite", ("gemini", "gemini-2.5-flash-lite")),
+        # xAI models
+        ("grok-code-fast-1", ("xai", "grok-code-fast-1")),
     ]
 
     for input_model, expected in test_cases:
@@ -79,9 +134,10 @@ def test_detect_provider_and_model_aliases():
 def test_detect_provider_and_model_azure():
     """Test Azure model detection"""
     test_cases = [
-        ("azure/o1-mini", ("azure", "o1-mini")),
-        ("azure/gpt-4o", ("azure", "gpt-4o")),
-        ("azure/gpt-4", ("azure", "gpt-4o")),  # Alias test
+        ("azure/gpt-4.1-nano", ("azure", "gpt-4.1-nano")),
+        ("azure/gpt-5-chat", ("azure", "gpt-5-chat")),
+        ("azure/gpt-5-mini", ("azure", "gpt-5-mini")),
+        ("azure/gpt-5-nano", ("azure", "gpt-5-nano")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -91,10 +147,9 @@ def test_detect_provider_and_model_azure():
 def test_detect_provider_and_model_openai():
     """Test OpenAI model detection"""
     test_cases = [
-        ("gpt-4", ("openai", "gpt-4")),
-        ("gpt4", ("openai", "gpt-4")),
-        ("gpt-4-turbo", ("openai", "gpt-4-turbo")),
-        ("gpt-3.5-turbo", ("openai", "gpt-3.5-turbo")),
+        ("gpt-5", ("openai", "gpt-5")),
+        ("gpt-5-mini", ("openai", "gpt-5-mini")),
+        ("gpt-5-nano", ("openai", "gpt-5-nano")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -104,10 +159,10 @@ def test_detect_provider_and_model_openai():
 def test_detect_provider_and_model_gemini():
     """Test Gemini model detection"""
     test_cases = [
-        ("gemini-1.5-pro", ("gemini", "gemini-1.5-pro")),
-        ("gemini-1.5-flash", ("gemini", "gemini-1.5-flash")),
-        ("gemini-2.5-pro-experimental", ("gemini", "gemini-2.5-pro-exp-03-25")),
-        ("gemini", ("gemini", "gemini-2.5-pro-experimental")),  # Alias test
+        ("gemini-2.5-pro", ("gemini", "gemini-2.5-pro")),
+        ("gemini-2.5-flash", ("gemini", "gemini-2.5-flash")),
+        ("gemini-2.5-flash-lite", ("gemini", "gemini-2.5-flash-lite")),
+        ("gemini", ("gemini", "gemini-2.5-flash")),  # Alias test
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -117,9 +172,12 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude-3.5-sonnet", ("anthropic", "claude-3-5-sonnet-20241022")),
-        ("claude-4", ("anthropic", "claude-sonnet-4-20250514")),
-        ("claude-4.0", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude", ("anthropic", "claude-sonnet-4-5-20250929")),
+        ("opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("claude-opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
+        ("claude-sonnet-4-20250514", ("anthropic", "claude-sonnet-4-20250514")),
+        ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -246,8 +304,8 @@ def test_main_with_changes(mock_repo_class, mock_generate, capsys):
     # Setup mock generate
     mock_generate.return_value = "test response"
 
-    # Run with environment variable set
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    # Run with environment variable set - clear other provider keys
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         try:
             main([])
         except SystemExit:
@@ -276,8 +334,8 @@ def test_main_clean_branch(mock_repo_class, mock_generate, capsys):
     # Setup mock generate
     mock_generate.return_value = "test response"
 
-    # Run with environment variable set
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    # Run with environment variable set - clear other provider keys
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         try:
             main(["-t", "main"])
         except SystemExit:
@@ -302,7 +360,7 @@ def test_main_explicit_working_tree(mock_repo_class, mock_generate, capsys):
     mock_generate.return_value = "test response"
 
     # Run with environment variable set
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         try:
             main(["--working-tree"])
         except SystemExit:
@@ -408,7 +466,7 @@ Updated description with security context
     ]
 
     # Run main with vulnerability scanning
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         try:
             main(["--silent", "--vulns"])
         except SystemExit:
@@ -441,7 +499,7 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
         head.name = head._mock_name
 
     # Run main without specifying target branch
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         try:
             main([])  # No target specified, should fall back to main
         except SystemExit:
@@ -491,10 +549,12 @@ Low impact change to test functionality.
 - All tests passing
 """
 
-    try:
-        main(["--silent"])
-    except SystemExit:
-        pass
+    # Clear other provider keys to ensure Anthropic (which is mocked) is selected
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
+        try:
+            main(["--silent"])
+        except SystemExit:
+            pass
 
     # Verify output format
     captured = capsys.readouterr()
@@ -546,10 +606,12 @@ def test_main_working_tree_with_vulns(
     mock_generate.return_value = "Test PR description with vulnerabilities"
 
     # Run main with both working tree and vulnerability scanning
-    try:
-        main(["--silent", "-t", "-", "--vulns"])
-    except SystemExit:
-        pass
+    # Clear other provider keys to ensure Anthropic (which is mocked) is selected
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
+        try:
+            main(["--silent", "-t", "-", "--vulns"])
+        except SystemExit:
+            pass
 
     # Verify only one Trivy scan was performed (no temp repo clone)
     mock_trivy.assert_called_once()
@@ -602,10 +664,12 @@ def test_main_single_branch_vuln_scan(
     mock_generate.return_value = "Test PR description with single branch vulnerabilities"
 
     # Run main with vulnerability scanning but no valid target branch
-    try:
-        main(["--silent", "--vulns"])
-    except SystemExit:
-        pass
+    # Clear other provider keys to ensure Anthropic (which is mocked) is selected
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
+        try:
+            main(["--silent", "--vulns"])
+        except SystemExit:
+            pass
 
     # Verify only one Trivy scan was performed (no comparison scan)
     mock_trivy.assert_called_once()
@@ -660,7 +724,7 @@ def mock_trivy():
 
 def test_main_anthropic(mock_repo, mock_anthropic):
     args = Mock(
-        model="claude-3-opus-20240229",
+        model="claude-opus-4-1-20250805",
         target="-",
         vulns=False,
         silent=True,
@@ -682,7 +746,7 @@ def test_main_anthropic(mock_repo, mock_anthropic):
 @patch("aipr.main.generate_with_openai")
 def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with OpenAI"""
-    args = Mock(model="gpt-4", target="-", vulns=False, silent=True, verbose=False, prompt=None)
+    args = Mock(model="gpt-5", target="-", vulns=False, silent=True, verbose=False, prompt=None)
     mock_openai_gen.return_value = "Test description"
 
     with patch("aipr.main.parse_args", return_value=args):
@@ -703,7 +767,7 @@ def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_r
 def test_main_azure(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with Azure OpenAI"""
     args = Mock(
-        model="azure/gpt-4",
+        model="azure/gpt-5-mini",
         target="-",
         vulns=False,
         silent=True,
@@ -739,7 +803,7 @@ def test_main_with_vulns(
 ):
     """Test main function with vulnerability scanning"""
     args = Mock(
-        model="gpt-4",
+        model="gpt-5",
         target="-",
         vulns=True,
         silent=True,
@@ -797,9 +861,9 @@ def test_main_with_vulns(
 def test_detect_provider_and_model():
     """Test provider and model detection"""
     # Test Anthropic models
-    provider, model = detect_provider_and_model("claude-3-opus-20240229")
+    provider, model = detect_provider_and_model("claude-opus-4-1-20250805")
     assert provider == "anthropic"
-    assert model == "claude-3-opus-20240229"
+    assert model == "claude-opus-4-1-20250805"
 
     # Test Azure OpenAI models with explicit azure/ prefix
     with patch.dict(
@@ -810,15 +874,15 @@ def test_detect_provider_and_model():
             "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
         },
     ):
-        provider, model = detect_provider_and_model("azure/gpt-4")
+        provider, model = detect_provider_and_model("azure/gpt-5-mini")
         assert provider == "azure"
-        assert model == "gpt-4o"
+        assert model == "gpt-5-mini"
 
     # Test OpenAI models
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-        provider, model = detect_provider_and_model("gpt-4")
+        provider, model = detect_provider_and_model("gpt-5")
         assert provider == "openai"
-        assert model == "gpt-4"
+        assert model == "gpt-5"
 
 
 def test_prompt_manager():
@@ -871,7 +935,7 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
     ]
 
     # Test Anthropic
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+    with patch.dict("os.environ", clear_other_provider_keys("anthropic")):
         result = generate_with_anthropic("test", None, "claude-3", "test prompt")
         assert result == "Test response"
         mock_anthropic.assert_called_once()
@@ -886,13 +950,13 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
             "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
         },
     ):
-        result = generate_with_azure_openai("test", None, "gpt-4", "test prompt")
+        result = generate_with_azure_openai("test", None, "gpt-5-mini", "test prompt")
         assert result == "Test response"
         mock_azure.assert_called_once()
 
     # Test OpenAI
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-        result = generate_with_openai("test", None, "gpt-4", "test prompt")
+        result = generate_with_openai("test", None, "gpt-5", "test prompt")
         assert result == "Test response"
         mock_openai.assert_called_once()
 
@@ -900,10 +964,10 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
 @patch("aipr.main.generate_with_anthropic")
 @patch("aipr.main.generate_with_azure_openai")
 @patch("aipr.main.generate_with_openai")
-def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
-    """Test main function with Azure OpenAI o1-mini model that doesn't support system messages"""
+def test_main_azure_gpt5_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
+    """Test main function with Azure OpenAI GPT-5 Mini model"""
     args = Mock(
-        model="azure/o1-mini",
+        model="azure/gpt-5-mini",
         target="-",
         vulns=False,
         silent=True,
@@ -940,7 +1004,7 @@ def test_main_azure_o1_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_gen,
             mock_anthropic_gen.assert_not_called()
 
             # Verify the model name was passed correctly
-            assert mock_azure_gen.call_args[0][2] == "o1-mini"  # Check model parameter
+            assert mock_azure_gen.call_args[0][2] == "gpt-5-mini"  # Check model parameter
 
 
 # Commit Range Functionality Tests
@@ -1153,7 +1217,7 @@ class TestCommitRangeFunctionality:
         mock_repo = MagicMock()
         mock_repo_class.return_value = mock_repo
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-20250514")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-5-20250929")
         mock_get_diff.return_value = ("commit range diff content", {"total": 1, "files": []})
         mock_generate.return_value = "feat: add new feature from commit range"
 
@@ -1197,7 +1261,7 @@ class TestCommitRangeFunctionality:
 
         # Setup mocks
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-20250514")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-5-20250929")
         mock_get_diff.return_value = ("commit range diff content", {"files": [], "total": 0})
         mock_generate.return_value = "PR description from commit range"
 

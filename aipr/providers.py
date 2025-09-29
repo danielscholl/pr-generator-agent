@@ -86,26 +86,31 @@ def generate_with_azure_openai(
             azure_endpoint=endpoint,
         )
 
-        # For models that don't support system messages (like o1-mini), prepend it to user message
-        messages = []
-        if model in ["o1-mini"]:
-            combined_prompt = f"System Instructions:\n{system_prompt}\n\n{diff}"
-            messages = [{"role": "user", "content": combined_prompt}]
-        else:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": diff},
-            ]
+        # Build messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": diff},
+        ]
 
-        # o1-mini has special parameter requirements:
-        # - doesn't support temperature parameter
-        kwargs = {
-            "model": model,
-            "messages": messages,
-        }
-        if model not in ["o1-mini"]:  # Only set these for non-o1-mini models
-            kwargs["max_tokens"] = 1000
-            kwargs["temperature"] = 0.2
+        # GPT-5 series models have special requirements:
+        # - Use max_completion_tokens instead of max_tokens
+        # - Only support default temperature (1.0), cannot customize
+        # - Use reasoning tokens internally, need higher limits (reasoning + visible output)
+        if model.startswith("gpt-5") or model.startswith("gpt-4.1"):
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "max_completion_tokens": 8000,  # Higher limit for reasoning + output
+                # temperature parameter not supported - uses default (1.0)
+            }
+        else:
+            # Standard parameters for older models
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "max_tokens": 1000,
+                "temperature": 0.2,
+            }
 
         if verbose:
             print("\nSending request to Azure OpenAI API:")
@@ -167,12 +172,32 @@ def generate_with_openai(
         {"role": "user", "content": diff},
     ]
 
+    # GPT-5 series models have special requirements (same as Azure GPT-5):
+    # - Use max_completion_tokens instead of max_tokens
+    # - Only support default temperature (1.0), cannot customize
+    # - Use reasoning tokens internally, need higher limits (reasoning + visible output)
+    if model.startswith("gpt-5"):
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "max_completion_tokens": 8000,  # Higher limit for reasoning + output
+            # temperature parameter not supported - uses default (1.0)
+        }
+    else:
+        # Standard parameters for older models
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": 1000,
+            "temperature": 0.2,
+        }
+
     if verbose:
         print("\nSending request to OpenAI API:")
         print(f"  Model: {model}")
         print(
             "  Parameters:",
-            json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2),
+            json.dumps({k: v for k, v in kwargs.items() if k != "messages"}, indent=2),
         )
         print("\nRequest Messages:")
         for msg in messages:
@@ -185,12 +210,7 @@ def generate_with_openai(
         print("\nMaking API call...")
 
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=1000,
-            temperature=0.2,
-        )
+        response = client.chat.completions.create(**kwargs)
         if verbose:
             print("\nRaw API Response:")
             print(f"  Model: {response.model}")
@@ -267,3 +287,70 @@ def generate_with_gemini(
         if verbose:
             print(f"\nAPI Error: {str(e)}")
         raise ValueError(f"Gemini API error: {str(e)}")
+
+
+def generate_with_xai(
+    diff: str,
+    vuln_data: Optional[Dict[str, Any]],
+    model: str,
+    system_prompt: str,
+    verbose: bool = False,
+) -> str:
+    """Generate description using xAI's Grok models."""
+    api_key = os.getenv("XAI_API_KEY")
+    if not api_key:
+        raise ValueError("Missing xAI API key. Please set XAI_API_KEY environment variable.")
+
+    if verbose:
+        print("\nInitializing xAI client...")
+
+    # xAI uses OpenAI-compatible API format
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ValueError(
+            "OpenAI library required for xAI integration. Please install with: pip install openai"
+        )
+
+    # xAI API endpoint
+    client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": diff},
+    ]
+
+    if verbose:
+        print("\nSending request to xAI API:")
+        print(f"  Model: {model}")
+        print(
+            "  Parameters:",
+            json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2),
+        )
+        print("\nRequest Messages:")
+        for msg in messages:
+            print(f"\n{msg['role'].upper()} MESSAGE:")
+            content = msg["content"]
+            if len(content) > 500:
+                print(content[:500] + "...")
+            else:
+                print(content)
+        print("\nMaking API call...")
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        if verbose:
+            print("\nRaw API Response:")
+            print(f"  Model: {response.model}")
+            print(f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}")
+            print("\nResponse Content:")
+        return response.choices[0].message.content
+    except Exception as e:
+        if verbose:
+            print(f"\nAPI Error: {str(e)}")
+        raise ValueError(f"xAI API error: {str(e)}")
