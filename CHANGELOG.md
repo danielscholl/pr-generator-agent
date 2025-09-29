@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.4.0...v1.5.0) (2025-09-29)
+
+
+### Features
+
+* update AI provider models and add xAI support with improved CLI UX ([38cc59d](https://github.com/danielscholl/pr-generator-agent/commit/38cc59d00d1000d60ebc18f60f1902899c3dc633))
+* update AI provider models and add xAI support with improved CLI UX ([2e18b5c](https://github.com/danielscholl/pr-generator-agent/commit/2e18b5c9926323631f91118b18d39e88732e2d8a))
+
 ## [1.4.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.3.0...v1.4.0) (2025-06-30)
 
 
