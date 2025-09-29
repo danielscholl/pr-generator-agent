@@ -109,19 +109,24 @@ docs: update installation and usage documentation
 
 ## Environment Variables
 
-#### Anthropic (Default)
-- `ANTHROPIC_API_KEY`: Anthropic API key
+The tool automatically detects which provider to use based on available environment variables, with the following priority order:
 
-#### Azure OpenAI
-- `AZURE_API_KEY`: Azure OpenAI API key
-- `AZURE_API_BASE`: Azure endpoint URL
-- `AZURE_API_VERSION`: API version (default: "2024-02-15-preview")
+1. **Azure OpenAI (Default - Highest Priority)**
+   - `AZURE_API_KEY`: Azure OpenAI API key
+   - `AZURE_OPENAI_ENDPOINT`: Azure endpoint URL
+   - `AZURE_API_VERSION`: API version (default: "2024-02-15-preview")
 
-#### OpenAI
-- `OPENAI_API_KEY`: OpenAI API key
+2. **Anthropic**
+   - `ANTHROPIC_API_KEY`: Anthropic API key
 
-#### Google Gemini
-- `GEMINI_API_KEY`: Google Gemini API key
+3. **OpenAI**
+   - `OPENAI_API_KEY`: OpenAI API key
+
+4. **Google Gemini**
+   - `GEMINI_API_KEY`: Google Gemini API key
+
+5. **xAI**
+   - `XAI_API_KEY`: xAI API key for Grok models
 
 ## Usage
 
@@ -187,26 +192,26 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| Anthropic | `claude-4` | default (maps to `claude-sonnet-4-20250514`) |
-| | `claude-4.0` | alias for `claude-4` |
-| | `claude-3.5-sonnet` | maps to `claude-3-5-sonnet-20241022` |
-| | `claude-3.5-haiku` | maps to `claude-3-5-haiku-20241022` |
-| | `claude-3-haiku` | maps to `claude-3-haiku-20240307` |
-| | `claude` | alias for `claude-4` |
-| Azure OpenAI | `azure/o1-mini` | |
-| | `azure/gpt-4o` | |
-| | `azure/gpt-4o-mini` | |
-| | `azure/gpt-4` | alias for `azure/gpt-4o` |
-| | `azure` | alias for `azure/gpt-4o-mini` |
-| OpenAI | `gpt-4o` | maps to `gpt-4` |
-| | `gpt-4-turbo` | |
-| | `gpt-3.5-turbo` | |
-| | `gpt4` | alias for `gpt-4` |
-| | `openai` | alias for `gpt-4o` |
-| Google Gemini | `gemini-1.5-pro` | |
-| | `gemini-1.5-flash` | |
-| | `gemini-2.5-pro-experimental` | maps to `gemini-2.5-pro-exp-03-25`, default for Gemini |
-| | `gemini` | alias for `gemini-2.5-pro-experimental` |
+| **Anthropic** | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (default) |
+| | `claude-sonnet-4-20250514` | Claude Sonnet 4 |
+| | `claude-opus-4-1-20250805` | Claude Opus 4.1 |
+| | `claude` | alias for `claude-sonnet-4-5-20250929` |
+| | `opus`, `claude-opus` | aliases for `claude-opus-4-1-20250805` |
+| **Azure OpenAI** | `azure/gpt-5-mini` | default Azure model |
+| | `azure/gpt-4.1-nano` | Lightweight model |
+| | `azure/gpt-5-chat` | Conversational model |
+| | `azure/gpt-5-nano` | Most lightweight model |
+| | `azure` | alias for `azure/gpt-5-mini` |
+| **OpenAI** | `gpt-5` | Latest GPT-5 model (default) |
+| | `gpt-5-mini` | Mid-tier GPT-5 model |
+| | `gpt-5-nano` | Lightweight GPT-5 model |
+| | `openai` | alias for `gpt-5` |
+| **Google Gemini** | `gemini-2.5-flash` | Best price-performance (default) |
+| | `gemini-2.5-pro` | Flagship thinking model with 1M token context |
+| | `gemini-2.5-flash-lite` | Most cost-effective model |
+| | `gemini` | alias for `gemini-2.5-flash` |
+| **xAI** | `grok-code-fast-1` | Specialized for coding tasks |
+| | `grok`, `xai` | aliases for `grok-code-fast-1` |
 
 ## Custom Prompts
 

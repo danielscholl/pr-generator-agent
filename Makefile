@@ -14,12 +14,22 @@ install: clean-pyc
 	python3 -m venv $(VENV)
 	# Install in the virtual environment (temporary activation)
 	. $(VENV)/bin/activate && python -m pip install -e ".[dev]"
+	@echo "\n✓ Development environment ready!"
 	@echo "\nVerifying installation:"
-	@echo "Binary location: $(VENV)/bin/aipr"
-	@echo "Python package location: $$($(VENV)/bin/python -c "import aipr; print(aipr.__file__)")"
+	@echo "  Development binary: $(VENV)/bin/aipr"
+	@echo "  Package location: $$($(VENV)/bin/python -c "import aipr; print(aipr.__file__)")"
+	@if command -v aipr >/dev/null 2>&1; then \
+		GLOBAL_AIPR=$$(which aipr); \
+		if [ "$$GLOBAL_AIPR" != "$$(pwd)/$(VENV)/bin/aipr" ]; then \
+			echo "\n⚠️  WARNING: Found aipr installed globally at $$GLOBAL_AIPR"; \
+			echo "   This may conflict with your local development version."; \
+			echo "\n   To use your local version, run: source .venv/bin/activate"; \
+			echo "   Or to remove the global version: pipx uninstall pr-generator-agent"; \
+		fi; \
+	fi
 	@echo "\nNext step:"
-	@echo "To begin development, run: source .venv/bin/activate"
-	@echo "This will activate the virtual environment in your shell"
+	@echo "  Run: source .venv/bin/activate"
+	@echo "  This activates the virtual environment for development"
 
 format:
 	. $(VENV)/bin/activate && python -m black aipr/ tests/

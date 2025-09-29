@@ -15,6 +15,7 @@ from .providers import (
     generate_with_azure_openai,
     generate_with_gemini,
     generate_with_openai,
+    generate_with_xai,
 )
 
 # ANSI color codes
@@ -31,77 +32,94 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     if model:
         # Handle simple aliases first
         if model == "claude":
-            return "anthropic", "claude-sonnet-4-20250514"
+            return "anthropic", "claude-sonnet-4-5-20250929"  # New default: Claude Sonnet 4.5
+        if model == "opus" or model == "claude-opus":
+            return "anthropic", "claude-opus-4-1-20250805"
         if model == "azure":
-            return "azure", "gpt-4o-mini"
+            return "azure", "gpt-5-nano"  # Maps to deployment name in Azure
         if model == "openai":
-            return "openai", "gpt-4o"
+            return "openai", "gpt-5"  # New default for OpenAI
         if model == "gemini":
-            return "gemini", "gemini-2.5-pro-experimental"
+            return "gemini", "gemini-2.5-flash"  # Updated default for Gemini
+        if model == "grok" or model == "xai":
+            return "xai", "grok-code-fast-1"  # New xAI provider
 
         # Handle Azure models
         if model.startswith("azure/"):
             _, model_name = model.split("/", 1)
-            # Map azure model names to deployment names
+            # Map azure model names to deployment names - ONLY new GPT-5 series and 4.1-nano
             azure_models = {
-                "o1-mini": "o1-mini",
-                "gpt-4o": "gpt-4o",
-                "gpt-4o-mini": "gpt-4o-mini",
-                "gpt-4": "gpt-4o",  # Alias for gpt-4o
+                "gpt-4.1-nano": "gpt-4.1-nano",
+                "gpt-5-chat": "gpt-5-chat",
+                "gpt-5-mini": "gpt-5-mini",
+                "gpt-5-nano": "gpt-5-nano",
             }
-            return "azure", azure_models.get(model_name, model_name)
+            if model_name not in azure_models:
+                raise ValueError(
+                    f"Unsupported Azure model: {model_name}. Supported models: {', '.join(azure_models.keys())}"
+                )
+            return "azure", azure_models[model_name]
 
-        # Handle Gemini models
+        # Handle Gemini models - only 2.5 series
         if model.startswith("gemini"):
             gemini_models = {
-                "gemini-1.5-pro": "gemini-1.5-pro",
-                "gemini-1.5-flash": "gemini-1.5-flash",
-                "gemini-2.5-pro-experimental": "gemini-2.5-pro-exp-03-25",
+                "gemini-2.5-pro": "gemini-2.5-pro",
+                "gemini-2.5-flash": "gemini-2.5-flash",
+                "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
             }
-            return "gemini", gemini_models.get(model, model)
+            if model not in gemini_models:
+                raise ValueError(
+                    f"Unsupported Gemini model: {model}. Supported models: {', '.join(gemini_models.keys())}"
+                )
+            return "gemini", gemini_models[model]
 
-        # Handle OpenAI models
-        if model.startswith("gpt") or model == "gpt4":
-            # Only use Azure if explicitly configured with endpoint
-            if os.getenv("AZURE_OPENAI_ENDPOINT") and model.startswith("azure/"):
-                openai_models = {
-                    "gpt4": "gpt-4",
-                    "gpt-4-turbo": "gpt-4-turbo",
-                    "gpt-4o": "gpt-4",
-                }
-                return "azure", openai_models.get(model, model)
-            else:
-                openai_models = {
-                    "gpt4": "gpt-4",
-                    "gpt-4-turbo": "gpt-4-turbo",
-                    "gpt-4o": "gpt-4",
-                }
-                return "openai", openai_models.get(model, model)
+        # Handle OpenAI models - only GPT-5 series
+        if model.startswith("gpt"):
+            openai_models = {
+                "gpt-5": "gpt-5",
+                "gpt-5-mini": "gpt-5-mini",
+                "gpt-5-nano": "gpt-5-nano",
+            }
+            if model not in openai_models:
+                raise ValueError(
+                    f"Unsupported OpenAI model: {model}. Supported models: {', '.join(openai_models.keys())}"
+                )
+            return "openai", openai_models[model]
 
         # Handle Anthropic models
         if model.startswith("claude"):
-            anthropic_models = {
-                "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-                "claude-3.5-haiku": "claude-3-5-haiku-20241022",
-                "claude-3-haiku": "claude-3-haiku-20240307",
-                "claude-4": "claude-sonnet-4-20250514",
-                "claude-4.0": "claude-sonnet-4-20250514",
-            }
-            return "anthropic", anthropic_models.get(model, model)
+            # Direct model names
+            if model == "claude-sonnet-4-5-20250929":
+                return "anthropic", "claude-sonnet-4-5-20250929"
+            if model == "claude-sonnet-4-20250514":
+                return "anthropic", "claude-sonnet-4-20250514"
+            if model == "claude-opus-4-1-20250805":
+                return "anthropic", "claude-opus-4-1-20250805"
+            # If it's a claude model but not supported
+            raise ValueError(
+                f"Unsupported Anthropic model: {model}. Supported: claude-sonnet-4-5-20250929, claude-sonnet-4-20250514, claude-opus-4-1-20250805"
+            )
+
+        # Handle xAI models
+        if model == "grok-code-fast-1":
+            return "xai", "grok-code-fast-1"
 
     # No model specified, check environment for default
-    if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-sonnet-4-20250514"
+    # Azure OpenAI has highest priority as default
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
-        return "azure", "gpt-4"
+        return "azure", "gpt-5-nano"  # Default provider and model
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "anthropic", "claude-sonnet-4-5-20250929"  # New default: Claude Sonnet 4.5
     if os.getenv("OPENAI_API_KEY"):
-        return "openai", "gpt-4"
+        return "openai", "gpt-5"
     if os.getenv("GEMINI_API_KEY"):
-        return "gemini", "gemini-2.5-pro-experimental"
+        return "gemini", "gemini-2.5-flash"
+    if os.getenv("XAI_API_KEY"):
+        return "xai", "grok-code-fast-1"
 
     raise Exception(
-        "No API key found. Please set ANTHROPIC_API_KEY, AZURE_API_KEY, "
-        "OPENAI_API_KEY, or GEMINI_API_KEY"
+        "No API key found. Please set AZURE_API_KEY (with AZURE_OPENAI_ENDPOINT), "
+        "ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or XAI_API_KEY"
     )
 
 
@@ -431,13 +449,13 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {GREEN}claude-4{ENDC} (default)             Anthropic's Claude 4.0 Sonnet
-  {YELLOW}azure/o1-mini{ENDC}                  Azure OpenAI o1-mini
-  {YELLOW}azure/gpt-4o{ENDC}                   Azure OpenAI GPT-4
-  {YELLOW}gpt-4{ENDC}                          OpenAI GPT-4
-  {YELLOW}gemini-2.5-pro-experimental{ENDC}    Google's Gemini 2.5 Pro
+  {GREEN}azure{ENDC} (default)                Azure OpenAI GPT-5 Nano
+  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 4.5
+  {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
+  {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
+  {YELLOW}grok{ENDC}                           xAI Grok Code Fast 1
 
-prompt templates:
+prompt templates (use with -p flag):
   {BLUE}meta{ENDC}                          Default XML prompt template for merge requests
   {BLUE}commit{ENDC}                        XML prompt template for commit messages""",
     )
@@ -460,6 +478,11 @@ prompt templates:
         "-m",
         "--model",
         help="AI model to use (see recommended models below)",
+    )
+    parser.add_argument(
+        "-p",
+        "--prompt",
+        help="Prompt template: built-in name (e.g., 'meta') or custom XML file path",
     )
 
     # Create subparsers for different commands
@@ -577,15 +600,16 @@ prompt templates:
             arg = args_list[i]
             if arg in ["-s", "--silent", "-d", "--debug", "-v", "--verbose"]:
                 global_args.append(arg)
-            elif arg in ["-m", "--model"] and i + 1 < len(args_list):
+            elif arg in ["-m", "--model", "-p", "--prompt"] and i + 1 < len(args_list):
                 global_args.extend([arg, args_list[i + 1]])
                 i += 1  # Skip the next arg as it's the value
             else:
                 pr_args.append(arg)
             i += 1
 
-        # Construct args in proper order: global_args + ["pr"] + pr_args
-        args_to_parse = global_args + ["pr"] + pr_args
+        # Construct args in proper order: ["pr"] + global_args + pr_args
+        # Subcommand must come first, then its arguments
+        args_to_parse = ["pr"] + global_args + pr_args
         parsed_args = parser.parse_args(args_to_parse)
     else:
         # Parse normally with subcommands
@@ -814,6 +838,8 @@ def generate_description(
         return generate_with_openai(user_prompt, vuln_data, model, system_prompt, verbose)
     if provider == "gemini":
         return generate_with_gemini(user_prompt, vuln_data, model, system_prompt, verbose)
+    if provider == "xai":
+        return generate_with_xai(user_prompt, vuln_data, model, system_prompt, verbose)
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -838,6 +864,8 @@ def generate_commit_message(
         return generate_with_openai(user_prompt, None, model, system_prompt, verbose)
     if provider == "gemini":
         return generate_with_gemini(user_prompt, None, model, system_prompt, verbose)
+    if provider == "xai":
+        return generate_with_xai(user_prompt, None, model, system_prompt, verbose)
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -950,17 +978,7 @@ def handle_pr_command(args):
             user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
 
             # Prepare the API parameters
-            if provider == "azure" and model == "o1-mini":
-                combined_prompt = (
-                    f"System Instructions:\n{system_prompt}\n\n" f"User Request:\n{user_prompt}"
-                )
-                messages = [{"role": "user", "content": combined_prompt}]
-                params = {
-                    "model": model,
-                    "messages": messages,
-                    "max_completion_tokens": 1000,
-                }
-            elif provider == "anthropic":
+            if provider == "anthropic":
                 params = {
                     "model": model,
                     "system": system_prompt,
