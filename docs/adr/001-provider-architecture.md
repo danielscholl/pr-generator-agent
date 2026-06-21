@@ -58,10 +58,12 @@ def call_llm(model_name: str, system_prompt: str, user_prompt: str, temperature:
 
 ## Model Aliasing
 To improve user experience, we implement model aliases:
-- `"claude"` → `"claude-3-5-sonnet-20241022"`
-- `"azure"` → `"gpt-4o"`
-- `"openai"` → `"gpt-4o"`
-- `"gemini"` → `"gemini-2.0-flash-exp"`
+- `"claude"` → `"claude-sonnet-4-6"`
+- `"opus"` / `"claude-opus"` → `"claude-opus-4-8"`
+- `"azure"` → `"gpt-5-nano"`
+- `"openai"` → `"gpt-5"`
+- `"gemini"` → `"gemini-2.5-flash"`
+- `"grok"` / `"xai"` → `"grok-code-fast-1"`
 
 ## Success Criteria
 - New providers can be added in < 30 minutes
