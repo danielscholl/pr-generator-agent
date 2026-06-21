@@ -72,7 +72,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-sonnet-4-5-20250929"
+        assert model == "claude-sonnet-4-6"
 
     # Test with OpenAI key
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
@@ -97,9 +97,9 @@ def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("opus", ("anthropic", "claude-opus-4-1-20250805")),
-        ("claude-opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("claude", ("anthropic", "claude-sonnet-4-6")),
+        ("opus", ("anthropic", "claude-opus-4-8")),
+        ("claude-opus", ("anthropic", "claude-opus-4-8")),
         ("azure", ("azure", "gpt-5-nano")),  # Updated default
         ("openai", ("openai", "gpt-5")),  # Updated default
         ("gemini", ("gemini", "gemini-2.5-flash")),  # Updated default
@@ -114,9 +114,10 @@ def test_detect_provider_and_model_aliases():
         ("gpt-5", ("openai", "gpt-5")),
         ("gpt-5-mini", ("openai", "gpt-5-mini")),
         ("gpt-5-nano", ("openai", "gpt-5-nano")),
-        # Anthropic models - direct names only
+        # Anthropic models - direct names (current + still-active legacy pins)
+        ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
+        ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("claude-sonnet-4-20250514", ("anthropic", "claude-sonnet-4-20250514")),
         ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
         # Gemini model aliases - only 2.5 series
         ("gemini-2.5-pro", ("gemini", "gemini-2.5-pro")),
@@ -172,16 +173,21 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("opus", ("anthropic", "claude-opus-4-1-20250805")),
-        ("claude-opus", ("anthropic", "claude-opus-4-1-20250805")),
+        ("claude", ("anthropic", "claude-sonnet-4-6")),
+        ("opus", ("anthropic", "claude-opus-4-8")),
+        ("claude-opus", ("anthropic", "claude-opus-4-8")),
+        ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
+        ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("claude-sonnet-4-20250514", ("anthropic", "claude-sonnet-4-20250514")),
         ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
         assert (provider, model) == expected
+
+    # Retired model IDs must now raise rather than silently 404 at the API
+    with pytest.raises(ValueError, match="Unsupported Anthropic model"):
+        detect_provider_and_model("claude-sonnet-4-20250514")
 
 
 # Trivy Scanning Tests
@@ -1217,7 +1223,7 @@ class TestCommitRangeFunctionality:
         mock_repo = MagicMock()
         mock_repo_class.return_value = mock_repo
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-5-20250929")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-6")
         mock_get_diff.return_value = ("commit range diff content", {"total": 1, "files": []})
         mock_generate.return_value = "feat: add new feature from commit range"
 
@@ -1261,7 +1267,7 @@ class TestCommitRangeFunctionality:
 
         # Setup mocks
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-5-20250929")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-4-6")
         mock_get_diff.return_value = ("commit range diff content", {"files": [], "total": 0})
         mock_generate.return_value = "PR description from commit range"
 

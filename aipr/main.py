@@ -32,9 +32,9 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     if model:
         # Handle simple aliases first
         if model == "claude":
-            return "anthropic", "claude-sonnet-4-5-20250929"  # New default: Claude Sonnet 4.5
+            return "anthropic", "claude-sonnet-4-6"  # Default: Claude Sonnet 4.6
         if model == "opus" or model == "claude-opus":
-            return "anthropic", "claude-opus-4-1-20250805"
+            return "anthropic", "claude-opus-4-8"  # Claude Opus 4.8
         if model == "azure":
             return "azure", "gpt-5-nano"  # Maps to deployment name in Azure
         if model == "openai":
@@ -86,19 +86,21 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
                 )
             return "openai", openai_models[model]
 
-        # Handle Anthropic models
+        # Handle Anthropic models - current models plus still-active dated pins
         if model.startswith("claude"):
-            # Direct model names
-            if model == "claude-sonnet-4-5-20250929":
-                return "anthropic", "claude-sonnet-4-5-20250929"
-            if model == "claude-sonnet-4-20250514":
-                return "anthropic", "claude-sonnet-4-20250514"
-            if model == "claude-opus-4-1-20250805":
-                return "anthropic", "claude-opus-4-1-20250805"
-            # If it's a claude model but not supported
-            raise ValueError(
-                f"Unsupported Anthropic model: {model}. Supported: claude-sonnet-4-5-20250929, claude-sonnet-4-20250514, claude-opus-4-1-20250805"
-            )
+            anthropic_models = {
+                "claude-sonnet-4-6": "claude-sonnet-4-6",
+                "claude-opus-4-8": "claude-opus-4-8",
+                # Still-active legacy pins kept for backward compatibility
+                "claude-sonnet-4-5-20250929": "claude-sonnet-4-5-20250929",
+                "claude-opus-4-1-20250805": "claude-opus-4-1-20250805",
+            }
+            if model not in anthropic_models:
+                raise ValueError(
+                    f"Unsupported Anthropic model: {model}. "
+                    f"Supported models: {', '.join(anthropic_models.keys())}"
+                )
+            return "anthropic", anthropic_models[model]
 
         # Handle xAI models
         if model == "grok-code-fast-1":
@@ -109,7 +111,7 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
         return "azure", "gpt-5-nano"  # Default provider and model
     if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-sonnet-4-5-20250929"  # New default: Claude Sonnet 4.5
+        return "anthropic", "claude-sonnet-4-6"  # Default: Claude Sonnet 4.6
     if os.getenv("OPENAI_API_KEY"):
         return "openai", "gpt-5"
     if os.getenv("GEMINI_API_KEY"):
@@ -450,7 +452,7 @@ def parse_args(args=None):
         epilog=f"""
 recommended models:
   {GREEN}azure{ENDC} (default)                Azure OpenAI GPT-5 Nano
-  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 4.5
+  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 4.6
   {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
   {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
   {YELLOW}grok{ENDC}                           xAI Grok Code Fast 1
