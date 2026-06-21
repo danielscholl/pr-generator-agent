@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1](https://github.com/danielscholl/pr-generator-agent/compare/v1.5.0...v1.5.1) (2026-06-21)
+
+
+### Bug Fixes
+
+* update default Anthropic models to current non-retired versions ([b8f5ff1](https://github.com/danielscholl/pr-generator-agent/commit/b8f5ff10be1c80f7b3ebcc7cdf9d23bdb0f44b2e))
+* update default Anthropic models to current non-retired versions ([9fbe782](https://github.com/danielscholl/pr-generator-agent/commit/9fbe782d99e6a82a4700a0ab652bdf5518c46a85))
+
+
+### Documentation
+
+* refresh stale model aliases in ADR-001 ([a17fbe6](https://github.com/danielscholl/pr-generator-agent/commit/a17fbe660d38f2179c741e9785a4b0c88f326d80))
+
 ## [1.5.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.4.0...v1.5.0) (2025-09-29)
 
 
