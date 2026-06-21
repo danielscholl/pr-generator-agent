@@ -45,10 +45,10 @@ aipr commit --from v1.0.0
 
 # Custom usage - Analyze changes against main branch
 # Include: Vulnerability scanning
-# Use: Azure OpenAI o1-mini model
+# Use: Azure OpenAI GPT-5 Mini model
 # Prompt: meta template
 # Output: Verbose
-aipr pr -t main --vulns -p meta -m azure/o1-mini -v
+aipr pr -t main --vulns -p meta -m azure/gpt-5-mini -v
 
 # Inline with merge request creation
 gh pr create -b "$(aipr pr -s)" -t "feat: New Feature"
@@ -192,11 +192,12 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| **Anthropic** | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (default) |
-| | `claude-sonnet-4-20250514` | Claude Sonnet 4 |
-| | `claude-opus-4-1-20250805` | Claude Opus 4.1 |
-| | `claude` | alias for `claude-sonnet-4-5-20250929` |
-| | `opus`, `claude-opus` | aliases for `claude-opus-4-1-20250805` |
+| **Anthropic** | `claude-sonnet-4-6` | Claude Sonnet 4.6 (default) |
+| | `claude-opus-4-8` | Claude Opus 4.8 |
+| | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (legacy pin) |
+| | `claude-opus-4-1-20250805` | Claude Opus 4.1 (legacy pin) |
+| | `claude` | alias for `claude-sonnet-4-6` |
+| | `opus`, `claude-opus` | aliases for `claude-opus-4-8` |
 | **Azure OpenAI** | `azure/gpt-5-mini` | default Azure model |
 | | `azure/gpt-4.1-nano` | Lightweight model |
 | | `azure/gpt-5-chat` | Conversational model |
