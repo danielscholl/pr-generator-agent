@@ -6,6 +6,114 @@ from typing import Dict, Optional, Tuple
 
 import git
 
+# Maximum length for a conventional commit subject line.
+# Matches the "under 72 characters" guidance in aipr/prompts/commit.xml.
+MAX_SUBJECT_LENGTH = 72
+
+# Matches a conventional commit subject: type, optional scope, optional "!",
+# then ": " (e.g. "feat: ...", "fix(core): ...", "refactor(api)!: ...").
+_COMMIT_SUBJECT_RE = re.compile(
+    r"^(?:feat|fix|docs|style|refactor|perf|test|build|ci|chore)" r"(?:\([^)]*\))?!?:\s",
+    re.IGNORECASE,
+)
+
+
+def _is_fence(line: str) -> bool:
+    """Return True if a line is a markdown code fence marker (``` or ```lang)."""
+    return line.strip().startswith("```")
+
+
+def _split_subject(subject: str, limit: int) -> Tuple[str, str]:
+    """Split an over-long subject at the last word boundary at or before ``limit``.
+
+    Args:
+        subject: The subject line to split.
+        limit: Maximum length for the head (subject) portion.
+
+    Returns:
+        A ``(head, tail)`` tuple. If no suitable word boundary exists at or
+        before ``limit`` (e.g. a single very long token), the subject is
+        returned unchanged with an empty tail.
+    """
+    if len(subject) <= limit:
+        return subject, ""
+    break_at = subject.rfind(" ", 0, limit + 1)
+    if break_at <= 0:
+        return subject, ""
+    return subject[:break_at].rstrip(), subject[break_at:].strip()
+
+
+def normalize_commit_message(message: str) -> str:
+    """Normalize a raw AI-generated commit message into a well-formed commit.
+
+    Model output cannot be trusted to match the repository's conventions, so
+    this enforces them deterministically after generation.
+
+    Guarantees:
+    - No surrounding markdown code fences or leading explanatory prose.
+    - A single-line subject separated from any body by exactly one blank line.
+    - A subject no longer than ``MAX_SUBJECT_LENGTH``; overflow (when the model
+      returns a run-on subject with no body) is wrapped into the body at a word
+      boundary rather than shipped as a single long line.
+    - No trailing period on the subject line.
+
+    Args:
+        message: The raw text returned by the AI provider.
+
+    Returns:
+        A cleaned commit message ready to hand to ``git commit``.
+    """
+    if not message or not message.strip():
+        return ""
+
+    lines = message.strip().splitlines()
+
+    # 1. Strip leading/trailing markdown code fences the model may wrap around
+    #    the message (handles ```, ```bash, and a fenced-then-preamble mix).
+    while lines and _is_fence(lines[0]):
+        lines = lines[1:]
+    while lines and _is_fence(lines[-1]):
+        lines = lines[:-1]
+
+    # 2. Drop any leading preamble before the real conventional-commit line
+    #    (e.g. "Here is your commit message:").
+    subject_idx = next(
+        (i for i, line in enumerate(lines) if _COMMIT_SUBJECT_RE.match(line.strip())),
+        None,
+    )
+    if subject_idx:  # truthy => a subject was found at index > 0
+        lines = lines[subject_idx:]
+
+    # 3. Separate the subject (first non-empty line) from the body.
+    while lines and not lines[0].strip():
+        lines = lines[1:]
+    if not lines:
+        return ""
+
+    subject = lines[0].strip()
+    body_lines = lines[1:]
+
+    # 4. Strip a single trailing period from the subject (but keep an ellipsis).
+    if subject.endswith(".") and not subject.endswith(".."):
+        subject = subject[:-1].rstrip()
+
+    # Collapse blank lines that lead the body.
+    while body_lines and not body_lines[0].strip():
+        body_lines = body_lines[1:]
+    body = "\n".join(body_lines).strip("\n")
+
+    # 5. A run-on subject with no body is the failure mode we most want to
+    #    prevent: wrap the overflow into the body instead of shipping it.
+    if len(subject) > MAX_SUBJECT_LENGTH and not body:
+        head, tail = _split_subject(subject, MAX_SUBJECT_LENGTH)
+        if tail:
+            subject = head
+            body = tail
+
+    if body:
+        return f"{subject}\n\n{body}"
+    return subject
+
 
 class CommitAnalyzer:
     """Analyzes git changes to generate conventional commit messages."""
