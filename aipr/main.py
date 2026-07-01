@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import git
 import tiktoken
 
-from .commit import CommitAnalyzer
+from .commit import CommitAnalyzer, normalize_commit_message
 from .prompts import InvalidPromptError, PromptManager
 from .providers import (
     generate_with_anthropic,
@@ -1133,8 +1133,9 @@ def handle_commit_command(args):
                 changes, file_summary, provider, model, args.verbose, context
             )
 
-            # Clean up the response (remove any extra whitespace/newlines)
-            commit_message = commit_message.strip()
+            # Normalize the response into a well-formed conventional commit
+            # (single-line subject, blank-line body, length-bounded subject).
+            commit_message = normalize_commit_message(commit_message)
 
             if args.verbose:
                 print("\nGenerated commit message:", file=sys.stderr)

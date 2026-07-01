@@ -10,7 +10,7 @@ import pytest
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
-from aipr.commit import CommitAnalyzer
+from aipr.commit import MAX_SUBJECT_LENGTH, CommitAnalyzer, normalize_commit_message
 from aipr.main import handle_commit_command
 
 
@@ -429,6 +429,97 @@ class TestCommitPromptGeneration:
 
         assert "conventional commit" in system_prompt.lower()
         assert "type(scope): description" in system_prompt
+
+
+class TestNormalizeCommitMessage:
+    """Test normalization of raw AI-generated commit messages."""
+
+    def test_clean_single_line_passthrough(self):
+        """A well-formed single-line subject is returned unchanged."""
+        assert (
+            normalize_commit_message("feat: add new functionality") == "feat: add new functionality"
+        )
+
+    def test_empty_input(self):
+        """Empty or whitespace-only input returns an empty string."""
+        assert normalize_commit_message("") == ""
+        assert normalize_commit_message("   \n  ") == ""
+
+    def test_strips_surrounding_whitespace(self):
+        """Leading/trailing whitespace is trimmed."""
+        assert normalize_commit_message("\n  fix: correct bug  \n") == "fix: correct bug"
+
+    def test_strips_plain_code_fence(self):
+        """A message wrapped in a bare ``` fence is unwrapped."""
+        raw = "```\nfeat: add feature\n```"
+        assert normalize_commit_message(raw) == "feat: add feature"
+
+    def test_strips_language_code_fence(self):
+        """A ```bash fenced message is unwrapped."""
+        raw = "```bash\nfix(api): handle null user\n```"
+        assert normalize_commit_message(raw) == "fix(api): handle null user"
+
+    def test_strips_leading_preamble(self):
+        """Explanatory prose before the commit line is dropped."""
+        raw = "Here is your commit message:\nfeat: add parser"
+        assert normalize_commit_message(raw) == "feat: add parser"
+
+    def test_preamble_and_fence_combination(self):
+        """A preamble plus a trailing fence are both removed."""
+        raw = "Sure! Here you go:\n```\nfeat: add thing\n```"
+        assert normalize_commit_message(raw) == "feat: add thing"
+
+    def test_inserts_blank_line_between_subject_and_body(self):
+        """A body glued directly to the subject gets a blank-line separator."""
+        raw = "feat: add x\nExtra detail about the change"
+        assert normalize_commit_message(raw) == "feat: add x\n\nExtra detail about the change"
+
+    def test_collapses_extra_blank_lines(self):
+        """Multiple blank lines between subject and body collapse to one."""
+        raw = "feat: add x\n\n\n\nbody detail"
+        assert normalize_commit_message(raw) == "feat: add x\n\nbody detail"
+
+    def test_strips_trailing_period_from_subject(self):
+        """A single trailing period on the subject is removed."""
+        assert normalize_commit_message("fix: correct the thing.") == "fix: correct the thing"
+
+    def test_preserves_ellipsis(self):
+        """An ellipsis on the subject is preserved (not stripped to '..')."""
+        assert normalize_commit_message("chore: work in progress...") == (
+            "chore: work in progress..."
+        )
+
+    def test_wraps_run_on_subject_with_no_body(self):
+        """A long run-on subject with no body is wrapped into subject + body."""
+        run_on = (
+            "feat: implement conventional commit generation with detailed "
+            "analysis of staged changes and automatic type detection and scope"
+        )
+        assert len(run_on) > MAX_SUBJECT_LENGTH
+
+        result = normalize_commit_message(run_on)
+        subject = result.split("\n\n", 1)[0]
+
+        # Subject is now within the limit and a body was created.
+        assert len(subject) <= MAX_SUBJECT_LENGTH
+        assert "\n\n" in result
+        # No content is lost: subject head + body reconstruct the original.
+        head, body = result.split("\n\n", 1)
+        assert f"{head} {body}" == run_on
+
+    def test_does_not_wrap_subject_when_body_present(self):
+        """An over-long subject with an explicit body is left intact."""
+        long_subject = "feat: " + "word " * 30  # well over the limit
+        raw = f"{long_subject.strip()}\n\nexisting body"
+        result = normalize_commit_message(raw)
+        # Subject preserved as-is (we don't shuffle content into an existing body).
+        assert result.split("\n\n", 1)[0] == long_subject.strip()
+        assert result.endswith("existing body")
+
+    def test_unbreakable_long_token_left_unchanged(self):
+        """A subject with no whitespace to break on is returned as-is."""
+        raw = "feat:" + "a" * 100
+        assert normalize_commit_message(raw) == raw
 
 
 # Fixtures

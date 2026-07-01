@@ -258,5 +258,13 @@ class PromptManager:
             "- type: feat/fix/docs/test/build/ci/chore/refactor/style/perf\n"
             "- scope: optional, derived from the main area of change\n"
             "- description: imperative mood, specific to the implementation\n\n"
+            "SUBJECT LINE RULES (STRICT):\n"
+            "- The subject is a SINGLE line: 'type(scope): description'\n"
+            "- Keep the subject under 72 characters - never emit a run-on subject\n"
+            "- Lowercase after the colon, imperative mood, no trailing period\n\n"
+            "OPTIONAL BODY:\n"
+            "- For substantial changes, add a body AFTER one blank line\n"
+            "- Put extra detail in the body instead of lengthening the subject\n"
+            "- Keep each body line under 80 characters\n\n"
             "RESPOND WITH ONLY THE COMMIT MESSAGE - NO EXPLANATIONS OR ADDITIONAL TEXT."
         )
