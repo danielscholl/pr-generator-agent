@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1](https://github.com/danielscholl/pr-generator-agent/compare/v1.6.0...v1.6.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **version:** fall back to package metadata for installed packages ([da6c310](https://github.com/danielscholl/pr-generator-agent/commit/da6c310b3156294c154c61b4949ebe41fe994522))
+* **version:** fall back to package metadata for installed packages ([792d3ad](https://github.com/danielscholl/pr-generator-agent/commit/792d3adbf34550fb1007725478d61960456df58a))
+
 ## [1.6.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.5.2...v1.6.0) (2026-07-17)
 
 
