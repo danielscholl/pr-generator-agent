@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <prompt>
     <purpose>
-        Generate a conventional commit message (1-3 lines) from git changes.
+        Generate a conventional commit message from git changes: a single subject line,
+        optionally followed by ONE BLANK LINE and a short body of 1-2 detail lines.
         Follow the conventional commit format: type(scope): description
-        Add additional detail lines when changes are substantial or complex.
+        Add a body only when changes are substantial or complex.
         CRITICALLY ANALYZE the actual code changes in the diff to understand what was specifically implemented.
     </purpose>
 
@@ -42,24 +43,28 @@
     </diff-analysis-patterns>
 
     <instructions>
-        <always>Output a conventional commit message with 1-3 lines providing appropriate detail</always>
-        <always>First line: type(scope): brief description (under 72 characters)</always>
+        <always>Output a subject line, optionally followed by ONE BLANK LINE and a body of 1-2 lines</always>
+        <always>Subject line: type(scope): brief description (under 72 characters, ONE idea only)</always>
+        <always>Separate the subject from the body with exactly one blank line - git folds consecutive non-blank lines into a single run-on subject</always>
         <always>Analyze the scope of changes: single feature vs. multiple features/areas</always>
         <always>For large ranges: summarize multiple features instead of focusing on one</always>
-        <always>Add 1-2 additional lines when changes are substantial or affect multiple areas</always>
+        <always>Add a body only when changes are substantial or affect multiple areas</always>
         <always>Analyze actual code changes to determine what was specifically implemented</always>
         <always>Use imperative mood in the description (add, implement, create - not adds, implements)</always>
         <always>Be specific about what functionality was added (not generic "add functionality")</always>
         <always>Extract meaningful details from function names, class names, and logic</always>
         <always>Use lowercase for the first letter of description</always>
         <always>No trailing periods in any line</always>
-        <always>Keep additional lines under 80 characters each</always>
+        <always>Keep body lines under 80 characters each</always>
         <never>Do not use generic descriptions like "add new functionality"</never>
         <never>Do not use past tense (added, fixed) or present continuous (adding, fixing)</never>
         <never>Do not add emojis or special characters</never>
-        <never>Do not exceed 3 lines total</never>
+        <never>Do not exceed a subject plus 2 body lines</never>
+        <never>Do not put a second idea in the subject line - move it to the body</never>
         <never>Do not include explanatory text or reasoning outside the commit message</never>
         <never>For large ranges: do not focus solely on one feature when multiple exist</never>
+        <never>Do not say "add", "new", or "introduce" for code the diff does not create - code visible in unchanged context lines or merely renamed, moved, or widened already existed</never>
+        <never>For documentation-only changes: do not describe the documented behavior as if it were implemented - the commit documents existing behavior, it does not add it</never>
     </instructions>
 
     <commit-types>
@@ -83,37 +88,49 @@
     </scope-guidelines>
 
     <multi-line-guidelines>
-        <single-line>Use single line for simple changes (single file, obvious functionality)</single-line>
-        <two-lines>Use two lines when adding detail improves understanding of the change</two-lines>
-        <three-lines>Use three lines for complex changes affecting multiple areas or components</three-lines>
-        <guideline>Additional lines should provide specific implementation details</guideline>
+        <subject-only>Use a lone subject line for simple changes (single file, obvious functionality)</subject-only>
+        <one-body-line>Add one body line when detail improves understanding of the change</one-body-line>
+        <two-body-lines>Add two body lines for complex changes affecting multiple areas or components</two-body-lines>
+        <guideline>The body starts after exactly one blank line - never directly under the subject</guideline>
+        <guideline>Body lines should provide specific implementation details</guideline>
         <guideline>Focus on what was implemented, not why or how it works</guideline>
-        <guideline>Each additional line should add meaningful information</guideline>
+        <guideline>Each body line should add meaningful information</guideline>
     </multi-line-guidelines>
 
     <detailed-examples>
         <example type="single-feature" analysis="New OAuth class and JWT methods">feat(auth): implement OAuth2 authentication with JWT tokens
+
 Includes login, logout, and token refresh functionality
 Supports multiple OAuth providers and session management</example>
         <example type="single-feature" analysis="Fixed null check in user validation logic">fix(api): resolve null pointer in user validation
+
 Add proper null checks before accessing user properties</example>
         <example type="single-feature" analysis="Added CommitAnalyzer class with conventional commit logic">feat(commit): add conventional commit message generation
+
 Includes analysis of staged changes and file categorization
 Supports automatic type detection and scope determination</example>
         <example type="range-multi-feature" analysis="Commit generation feature + CLI restructuring + documentation">feat: implement commit message generation with CLI improvements
+
 Add conventional commit analysis and subcommand architecture
 Include documentation updates and model configuration changes</example>
         <example type="range-multi-feature" analysis="Authentication + API enhancements + test coverage">feat(auth): add OAuth2 with enhanced API validation
+
 Implement JWT token management and session handling
 Include comprehensive test coverage and error handling</example>
         <example type="range-single-theme" analysis="Multiple related authentication improvements">feat(auth): enhance authentication system with OAuth2 support
+
 Add JWT tokens, session management, and security improvements
 Include password reset and multi-factor authentication flows</example>
         <example type="single-feature" analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
         <example type="single-feature" analysis="Enhanced argument parser with subcommands">feat(cli): add subcommand support for pr and commit commands
+
 Includes global flags, argument validation, and help system
 Maintains backward compatibility with existing usage patterns</example>
         <example type="single-feature" analysis="Updated requirements.txt with new dependencies">build(deps): add tiktoken and anthropic libraries</example>
+        <example type="single-feature" analysis="Widened an existing function's accepted domain">fix(types): extend identity slot domain to include sentinel
+
+Widen normalizeIdentitySlot to accept the out-of-ramp sentinel value</example>
+        <example type="single-feature" analysis="Docs list tools that already existed in the code">docs: list open_pr, resolve_review, and rollback in the tool catalog</example>
         <example type="single-feature" analysis="Simple documentation update">docs: update installation instructions</example>
     </detailed-examples>
 

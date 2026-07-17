@@ -142,6 +142,7 @@ aipr pr [options]  # or just 'aipr' for backward compatibility
 - `-p, --prompt`: Select prompt template (e.g., 'meta')
 - `--vulns`: Include vulnerability scanning
 - `--working-tree`: Use working tree changes
+- `--context`: Additional context for the PR description
 - `--from`: Starting commit for range analysis (SHA, branch, tag, etc.)
 - `--to`: Ending commit for range analysis (defaults to HEAD, requires --from)
 
@@ -150,6 +151,7 @@ aipr pr [options]  # or just 'aipr' for backward compatibility
 - `-d, --debug`: Preview prompts without API calls
 - `-s, --silent`: Output only the description
 - `-m, --model`: Specify AI model to use
+- `-V, --version`: Show the installed aipr version and exit
 
 The tool intelligently detects changes by:
 1. Using staged/unstaged changes if present

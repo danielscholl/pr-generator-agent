@@ -5,6 +5,14 @@ from typing import Any, Dict, Optional
 import anthropic
 from openai import AzureOpenAI, OpenAI
 
+# Maximum visible output tokens for a generated description. PR descriptions
+# regularly exceed 1000 tokens and were shipping truncated mid-sentence.
+MAX_OUTPUT_TOKENS = 4000
+
+# GPT-5 series models consume reasoning tokens from the same budget, so they
+# need extra headroom on top of the visible output.
+MAX_COMPLETION_TOKENS_REASONING = 8000
+
 
 def _anthropic_extra_params(model: str) -> Dict[str, Any]:
     """Return per-model request parameters for Anthropic models.
@@ -38,7 +46,7 @@ def generate_with_anthropic(
         print(f"  Model: {model}")
         print(
             "  Parameters:",
-            json.dumps({"max_tokens": 1000, **extra_params}, indent=2),
+            json.dumps({"max_tokens": MAX_OUTPUT_TOKENS, **extra_params}, indent=2),
         )
         print("\nRequest Messages:")
         print("\nSYSTEM MESSAGE:")
@@ -53,7 +61,7 @@ def generate_with_anthropic(
     try:
         response = client.messages.create(
             model=model,
-            max_tokens=1000,
+            max_tokens=MAX_OUTPUT_TOKENS,
             system=system_prompt,
             messages=[{"role": "user", "content": diff}],
             **extra_params,
@@ -114,7 +122,7 @@ def generate_with_azure_openai(
             kwargs = {
                 "model": model,
                 "messages": messages,
-                "max_completion_tokens": 8000,  # Higher limit for reasoning + output
+                "max_completion_tokens": MAX_COMPLETION_TOKENS_REASONING,
                 # temperature parameter not supported - uses default (1.0)
             }
         else:
@@ -122,7 +130,7 @@ def generate_with_azure_openai(
             kwargs = {
                 "model": model,
                 "messages": messages,
-                "max_tokens": 1000,
+                "max_tokens": MAX_OUTPUT_TOKENS,
                 "temperature": 0.2,
             }
 
@@ -194,7 +202,7 @@ def generate_with_openai(
         kwargs = {
             "model": model,
             "messages": messages,
-            "max_completion_tokens": 8000,  # Higher limit for reasoning + output
+            "max_completion_tokens": MAX_COMPLETION_TOKENS_REASONING,
             # temperature parameter not supported - uses default (1.0)
         }
     else:
@@ -202,7 +210,7 @@ def generate_with_openai(
         kwargs = {
             "model": model,
             "messages": messages,
-            "max_tokens": 1000,
+            "max_tokens": MAX_OUTPUT_TOKENS,
             "temperature": 0.2,
         }
 
@@ -339,7 +347,7 @@ def generate_with_xai(
         print(f"  Model: {model}")
         print(
             "  Parameters:",
-            json.dumps({"max_tokens": 1000, "temperature": 0.2}, indent=2),
+            json.dumps({"max_tokens": MAX_OUTPUT_TOKENS, "temperature": 0.2}, indent=2),
         )
         print("\nRequest Messages:")
         for msg in messages:
@@ -355,7 +363,7 @@ def generate_with_xai(
         response = client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=1000,
+            max_tokens=MAX_OUTPUT_TOKENS,
             temperature=0.2,
         )
         if verbose:

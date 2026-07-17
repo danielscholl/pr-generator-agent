@@ -8,9 +8,11 @@ from typing import Any, Dict, Optional, Tuple
 import git
 import tiktoken
 
+from . import __version__
 from .commit import CommitAnalyzer, normalize_commit_message
 from .prompts import InvalidPromptError, PromptManager
 from .providers import (
+    MAX_OUTPUT_TOKENS,
     generate_with_anthropic,
     generate_with_azure_openai,
     generate_with_gemini,
@@ -464,6 +466,13 @@ prompt templates (use with -p flag):
     )
 
     # Global options
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"aipr {__version__}",
+        help="Show the installed aipr version and exit",
+    )
     parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
     parser.add_argument(
         "-d",
@@ -531,6 +540,7 @@ prompt templates (use with -p flag):
         dest="to_commit",
         help="Ending commit for range analysis (defaults to HEAD, requires --from)",
     )
+    pr_parser.add_argument("--context", help="Additional context for the PR description")
 
     # Commit command (generate commit messages)
     commit_parser = subparsers.add_parser(
@@ -575,14 +585,21 @@ prompt templates (use with -p flag):
     # Check if args look like old-style (no subcommand) before parsing
     is_old_style = True
     if args is not None:
-        # If first arg is a known subcommand or help, it's new style
-        if len(args) > 0 and args[0] in ["pr", "commit", "-h", "--help"]:
+        # If first arg is a known subcommand, help, or version, it's new style
+        if len(args) > 0 and args[0] in ["pr", "commit", "-h", "--help", "-V", "--version"]:
             is_old_style = False
     else:
         # Check sys.argv for subcommands
         import sys
 
-        if len(sys.argv) > 1 and sys.argv[1] in ["pr", "commit", "-h", "--help"]:
+        if len(sys.argv) > 1 and sys.argv[1] in [
+            "pr",
+            "commit",
+            "-h",
+            "--help",
+            "-V",
+            "--version",
+        ]:
             is_old_style = False
 
     if is_old_style:
@@ -633,6 +650,7 @@ prompt templates (use with -p flag):
                 self.vulns = False
                 self.working_tree = False
                 self.prompt = None
+                self.context = None
 
         # Check if original args had pr-specific flags
         if args is not None:
@@ -826,12 +844,13 @@ def generate_description(
     system_prompt: str,
     verbose: bool = False,
     prompt_manager: Optional[PromptManager] = None,
+    context: Optional[str] = None,
 ) -> str:
     """Generate description using the specified provider."""
     # Get the user prompt from the prompt manager
     if prompt_manager is None:
         prompt_manager = PromptManager()
-    user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
+    user_prompt = prompt_manager.get_user_prompt(diff, vuln_data, context)
 
     if provider == "anthropic":
         return generate_with_anthropic(user_prompt, vuln_data, model, system_prompt, verbose)
@@ -978,7 +997,9 @@ def handle_pr_command(args):
         if args.debug:
             # Get the prompts first
             system_prompt = prompt_manager.get_system_prompt()
-            user_prompt = prompt_manager.get_user_prompt(diff, vuln_data)
+            user_prompt = prompt_manager.get_user_prompt(
+                diff, vuln_data, getattr(args, "context", None)
+            )
 
             # Prepare the API parameters
             if provider == "anthropic":
@@ -986,7 +1007,7 @@ def handle_pr_command(args):
                     "model": model,
                     "system": system_prompt,
                     "messages": [{"role": "user", "content": user_prompt}],
-                    "max_tokens": 1000,
+                    "max_tokens": MAX_OUTPUT_TOKENS,
                     "temperature": 0.2,
                 }
             elif provider == "gemini":
@@ -1009,7 +1030,7 @@ def handle_pr_command(args):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "max_tokens": 1000,
+                    "max_tokens": MAX_OUTPUT_TOKENS,
                     "temperature": 0.2,
                 }
 
@@ -1048,6 +1069,7 @@ def handle_pr_command(args):
             ),
             args.verbose,
             prompt_manager or PromptManager(),  # Ensure we always pass a valid PromptManager
+            getattr(args, "context", None),
         )
 
         if args.verbose:
