@@ -31,8 +31,8 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     """Detect which provider and model to use based on environment and args."""
     if model:
         # Handle simple aliases first
-        if model == "claude":
-            return "anthropic", "claude-sonnet-4-6"  # Default: Claude Sonnet 4.6
+        if model == "claude" or model == "sonnet":
+            return "anthropic", "claude-sonnet-5"  # Default: Claude Sonnet 5
         if model == "opus" or model == "claude-opus":
             return "anthropic", "claude-opus-4-8"  # Claude Opus 4.8
         if model == "azure":
@@ -89,9 +89,10 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         # Handle Anthropic models - current models plus still-active dated pins
         if model.startswith("claude"):
             anthropic_models = {
-                "claude-sonnet-4-6": "claude-sonnet-4-6",
+                "claude-sonnet-5": "claude-sonnet-5",
                 "claude-opus-4-8": "claude-opus-4-8",
-                # Still-active legacy pins kept for backward compatibility
+                # Still-active previous generation and legacy pins
+                "claude-sonnet-4-6": "claude-sonnet-4-6",
                 "claude-sonnet-4-5-20250929": "claude-sonnet-4-5-20250929",
                 "claude-opus-4-1-20250805": "claude-opus-4-1-20250805",
             }
@@ -111,7 +112,7 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
         return "azure", "gpt-5-nano"  # Default provider and model
     if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-sonnet-4-6"  # Default: Claude Sonnet 4.6
+        return "anthropic", "claude-sonnet-5"  # Default: Claude Sonnet 5
     if os.getenv("OPENAI_API_KEY"):
         return "openai", "gpt-5"
     if os.getenv("GEMINI_API_KEY"):
@@ -452,7 +453,7 @@ def parse_args(args=None):
         epilog=f"""
 recommended models:
   {GREEN}azure{ENDC} (default)                Azure OpenAI GPT-5 Nano
-  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 4.6
+  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 5
   {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
   {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
   {YELLOW}grok{ENDC}                           xAI Grok Code Fast 1
