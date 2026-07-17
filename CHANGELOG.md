@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.5.2...v1.6.0) (2026-07-17)
+
+
+### Features
+
+* **aipr:** switch default claude to sonnet-5 and add per-model params ([5e434ea](https://github.com/danielscholl/pr-generator-agent/commit/5e434eaae1d6c76c13c6c1b30ab62b36c3c47573))
+* **cli:** add --version flag ([a2cebbb](https://github.com/danielscholl/pr-generator-agent/commit/a2cebbb154bf33b40d3fb1b63474527bd101b738))
+* **cli:** add --version flag to display aipr version ([c79fc71](https://github.com/danielscholl/pr-generator-agent/commit/c79fc71f96c9321774b0a4c98c567a78a639aa28))
+* **pr:** add --context, structured output, and untruncated descriptions ([2b21fc7](https://github.com/danielscholl/pr-generator-agent/commit/2b21fc7ccc1a5c6dec5aa2621f1e7a2ca28f3edc))
+* **pr:** add context-aware pr description generation ([ee3b1ac](https://github.com/danielscholl/pr-generator-agent/commit/ee3b1ac3cab8513f528d463c45de2112e71a95ba))
+* update default Anthropic model to Claude Sonnet 5 ([c351220](https://github.com/danielscholl/pr-generator-agent/commit/c351220bbd9b3030b880c08aba9cab92ebf3d114))
+
+
+### Bug Fixes
+
+* **commit:** enforce blank-line subject/body separation and diff accuracy ([ffc417d](https://github.com/danielscholl/pr-generator-agent/commit/ffc417d6cefbcb14353715ebb0a291ec31fd36d7))
+* **commit:** wrap long subject into body even with existing body ([8eac7f7](https://github.com/danielscholl/pr-generator-agent/commit/8eac7f742442a991f69d2c2d1b2c2b3f7e7d656c))
+
 ## [1.5.2](https://github.com/danielscholl/pr-generator-agent/compare/v1.5.1...v1.5.2) (2026-07-01)
 
 
