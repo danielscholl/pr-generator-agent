@@ -507,14 +507,26 @@ class TestNormalizeCommitMessage:
         head, body = result.split("\n\n", 1)
         assert f"{head} {body}" == run_on
 
-    def test_does_not_wrap_subject_when_body_present(self):
-        """An over-long subject with an explicit body is left intact."""
-        long_subject = "feat: " + "word " * 30  # well over the limit
-        raw = f"{long_subject.strip()}\n\nexisting body"
+    def test_wraps_run_on_subject_with_existing_body(self):
+        """An over-long subject is wrapped even when a body already exists."""
+        run_on = "feat(cast): add cast-pick action and per-seat rationale introduce locking"
+        assert len(run_on) > MAX_SUBJECT_LENGTH
+        raw = f"{run_on}\n\nexisting body detail"
+
         result = normalize_commit_message(raw)
-        # Subject preserved as-is (we don't shuffle content into an existing body).
-        assert result.split("\n\n", 1)[0] == long_subject.strip()
-        assert result.endswith("existing body")
+        subject, body = result.split("\n\n", 1)
+
+        assert len(subject) <= MAX_SUBJECT_LENGTH
+        # Overflow lands at the top of the body, above the original body.
+        assert f"{subject} {body.splitlines()[0]}" == run_on
+        assert body.splitlines()[-1] == "existing body detail"
+
+    def test_subject_at_limit_with_body_unchanged(self):
+        """A subject exactly at the limit is not wrapped."""
+        subject = "feat: " + "x" * (MAX_SUBJECT_LENGTH - 6)
+        assert len(subject) == MAX_SUBJECT_LENGTH
+        raw = f"{subject}\n\nbody detail"
+        assert normalize_commit_message(raw) == raw
 
     def test_unbreakable_long_token_left_unchanged(self):
         """A subject with no whitespace to break on is returned as-is."""
