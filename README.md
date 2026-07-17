@@ -194,11 +194,12 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| **Anthropic** | `claude-sonnet-4-6` | Claude Sonnet 4.6 (default) |
+| **Anthropic** | `claude-sonnet-5` | Claude Sonnet 5 (default) |
 | | `claude-opus-4-8` | Claude Opus 4.8 |
+| | `claude-sonnet-4-6` | Claude Sonnet 4.6 (previous generation) |
 | | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (legacy pin) |
 | | `claude-opus-4-1-20250805` | Claude Opus 4.1 (legacy pin) |
-| | `claude` | alias for `claude-sonnet-4-6` |
+| | `claude`, `sonnet` | aliases for `claude-sonnet-5` |
 | | `opus`, `claude-opus` | aliases for `claude-opus-4-8` |
 | **Azure OpenAI** | `azure/gpt-5-mini` | default Azure model |
 | | `azure/gpt-4.1-nano` | Lightweight model |

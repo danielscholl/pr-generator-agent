@@ -14,6 +14,19 @@ MAX_OUTPUT_TOKENS = 4000
 MAX_COMPLETION_TOKENS_REASONING = 8000
 
 
+def _anthropic_extra_params(model: str) -> Dict[str, Any]:
+    """Return per-model request parameters for Anthropic models.
+
+    Claude Sonnet 5 and Opus 4.8 reject non-default sampling parameters
+    (temperature returns a 400). Sonnet 5 also runs adaptive thinking by
+    default, which spends the output-token budget on reasoning - disable it
+    since description generation needs the full budget for visible output.
+    """
+    if model.startswith(("claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7")):
+        return {"thinking": {"type": "disabled"}}
+    return {"temperature": 0.2}
+
+
 def generate_with_anthropic(
     diff: str,
     vuln_data: Optional[Dict[str, Any]],
@@ -26,13 +39,14 @@ def generate_with_anthropic(
         print("\nInitializing Anthropic client...")
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    extra_params = _anthropic_extra_params(model)
 
     if verbose:
         print("\nSending request to Anthropic API:")
         print(f"  Model: {model}")
         print(
             "  Parameters:",
-            json.dumps({"max_tokens": MAX_OUTPUT_TOKENS, "temperature": 0.2}, indent=2),
+            json.dumps({"max_tokens": MAX_OUTPUT_TOKENS, **extra_params}, indent=2),
         )
         print("\nRequest Messages:")
         print("\nSYSTEM MESSAGE:")
@@ -48,9 +62,9 @@ def generate_with_anthropic(
         response = client.messages.create(
             model=model,
             max_tokens=MAX_OUTPUT_TOKENS,
-            temperature=0.2,
             system=system_prompt,
             messages=[{"role": "user", "content": diff}],
+            **extra_params,
         )
         if verbose:
             print("\nRaw API Response:")

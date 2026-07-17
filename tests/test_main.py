@@ -72,7 +72,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-sonnet-4-6"
+        assert model == "claude-sonnet-5"
 
     # Test with OpenAI key
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
@@ -97,7 +97,8 @@ def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-sonnet-4-6")),
+        ("claude", ("anthropic", "claude-sonnet-5")),
+        ("sonnet", ("anthropic", "claude-sonnet-5")),
         ("opus", ("anthropic", "claude-opus-4-8")),
         ("claude-opus", ("anthropic", "claude-opus-4-8")),
         ("azure", ("azure", "gpt-5-nano")),  # Updated default
@@ -115,6 +116,7 @@ def test_detect_provider_and_model_aliases():
         ("gpt-5-mini", ("openai", "gpt-5-mini")),
         ("gpt-5-nano", ("openai", "gpt-5-nano")),
         # Anthropic models - direct names (current + still-active legacy pins)
+        ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
         ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
@@ -173,9 +175,11 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude", ("anthropic", "claude-sonnet-4-6")),
+        ("claude", ("anthropic", "claude-sonnet-5")),
+        ("sonnet", ("anthropic", "claude-sonnet-5")),
         ("opus", ("anthropic", "claude-opus-4-8")),
         ("claude-opus", ("anthropic", "claude-opus-4-8")),
+        ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
         ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
@@ -1442,3 +1446,30 @@ class TestCommitRangeFunctionality:
                             "Invalid commit reference: abc123" in str(call) for call in print_calls
                         )
                         mock_exit.assert_called_with(1)
+
+
+class TestAnthropicRequestParams:
+    """Per-model Anthropic request parameter selection."""
+
+    def test_sonnet_5_omits_temperature_and_disables_thinking(self):
+        """Sonnet 5 rejects temperature and needs thinking disabled."""
+        from aipr.providers import _anthropic_extra_params
+
+        params = _anthropic_extra_params("claude-sonnet-5")
+        assert "temperature" not in params
+        assert params["thinking"] == {"type": "disabled"}
+
+    def test_opus_4_8_omits_temperature(self):
+        """Opus 4.8 rejects non-default sampling parameters."""
+        from aipr.providers import _anthropic_extra_params
+
+        params = _anthropic_extra_params("claude-opus-4-8")
+        assert "temperature" not in params
+
+    def test_legacy_models_keep_temperature(self):
+        """Older Anthropic models keep the low-temperature setting."""
+        from aipr.providers import _anthropic_extra_params
+
+        for model in ("claude-sonnet-4-6", "claude-sonnet-4-5-20250929"):
+            params = _anthropic_extra_params(model)
+            assert params == {"temperature": 0.2}
