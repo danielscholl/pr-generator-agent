@@ -52,9 +52,9 @@ def normalize_commit_message(message: str) -> str:
     Guarantees:
     - No surrounding markdown code fences or leading explanatory prose.
     - A single-line subject separated from any body by exactly one blank line.
-    - A subject no longer than ``MAX_SUBJECT_LENGTH``; overflow (when the model
-      returns a run-on subject with no body) is wrapped into the body at a word
-      boundary rather than shipped as a single long line.
+    - A subject no longer than ``MAX_SUBJECT_LENGTH``; overflow from a run-on
+      subject is wrapped into the body at a word boundary rather than shipped
+      as a single long line, whether or not a body already exists.
     - No trailing period on the subject line.
 
     Args:
@@ -102,13 +102,14 @@ def normalize_commit_message(message: str) -> str:
         body_lines = body_lines[1:]
     body = "\n".join(body_lines).strip("\n")
 
-    # 5. A run-on subject with no body is the failure mode we most want to
-    #    prevent: wrap the overflow into the body instead of shipping it.
-    if len(subject) > MAX_SUBJECT_LENGTH and not body:
+    # 5. A run-on subject is the failure mode we most want to prevent: wrap
+    #    the overflow into the body instead of shipping it, prepending to any
+    #    body the model already produced.
+    if len(subject) > MAX_SUBJECT_LENGTH:
         head, tail = _split_subject(subject, MAX_SUBJECT_LENGTH)
         if tail:
             subject = head
-            body = tail
+            body = f"{tail}\n{body}" if body else tail
 
     if body:
         return f"{subject}\n\n{body}"

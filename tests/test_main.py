@@ -1389,6 +1389,16 @@ class TestCommitRangeFunctionality:
         args = parse_args(["pr", "--silent"])
         assert args.context is None
 
+    def test_version_flag(self, capsys):
+        """Test that --version prints the package version and exits."""
+        from aipr import __version__
+        from aipr.main import parse_args
+
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["--version"])
+        assert exc_info.value.code == 0
+        assert f"aipr {__version__}" in capsys.readouterr().out
+
     def test_commit_range_help_text_includes_range_info(self):
         """Test that help text includes information about commit range functionality."""
         from aipr.main import parse_args

@@ -151,6 +151,7 @@ aipr pr [options]  # or just 'aipr' for backward compatibility
 - `-d, --debug`: Preview prompts without API calls
 - `-s, --silent`: Output only the description
 - `-m, --model`: Specify AI model to use
+- `-V, --version`: Show the installed aipr version and exit
 
 The tool intelligently detects changes by:
 1. Using staged/unstaged changes if present
