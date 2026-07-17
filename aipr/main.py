@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import git
 import tiktoken
 
+from . import __version__
 from .commit import CommitAnalyzer, normalize_commit_message
 from .prompts import InvalidPromptError, PromptManager
 from .providers import (
@@ -463,6 +464,13 @@ prompt templates (use with -p flag):
     )
 
     # Global options
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"aipr {__version__}",
+        help="Show the installed aipr version and exit",
+    )
     parser.add_argument("-s", "--silent", action="store_true", help="Silent mode")
     parser.add_argument(
         "-d",
@@ -574,14 +582,21 @@ prompt templates (use with -p flag):
     # Check if args look like old-style (no subcommand) before parsing
     is_old_style = True
     if args is not None:
-        # If first arg is a known subcommand or help, it's new style
-        if len(args) > 0 and args[0] in ["pr", "commit", "-h", "--help"]:
+        # If first arg is a known subcommand, help, or version, it's new style
+        if len(args) > 0 and args[0] in ["pr", "commit", "-h", "--help", "-V", "--version"]:
             is_old_style = False
     else:
         # Check sys.argv for subcommands
         import sys
 
-        if len(sys.argv) > 1 and sys.argv[1] in ["pr", "commit", "-h", "--help"]:
+        if len(sys.argv) > 1 and sys.argv[1] in [
+            "pr",
+            "commit",
+            "-h",
+            "--help",
+            "-V",
+            "--version",
+        ]:
             is_old_style = False
 
     if is_old_style:
