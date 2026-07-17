@@ -124,3 +124,52 @@ def test_get_user_prompt():
     assert vuln_data in user_prompt
     assert "Git Diff:" in user_prompt
     assert "Vulnerability Analysis:" in user_prompt
+
+
+def test_get_user_prompt_security_section_only_with_vulns():
+    """The security section only appears when vulnerability data is provided."""
+    manager = PromptManager()
+
+    prompt = manager.get_user_prompt("test diff content")
+    assert "## Security Analysis" not in prompt
+
+    prompt = manager.get_user_prompt("test diff content", "test vulnerability data")
+    assert "## Security Analysis" in prompt
+
+
+def test_get_user_prompt_structure_headings():
+    """The default prompt requests the structured description shape."""
+    manager = PromptManager()
+    prompt = manager.get_user_prompt("test diff content")
+    assert "## Summary" in prompt
+    assert "## Changes" in prompt
+    assert "## Technical Details" in prompt
+
+
+def test_get_user_prompt_with_context():
+    """Author-provided context is included in the default prompt."""
+    manager = PromptManager()
+    context = "This is an upstream sync of vendored code"
+
+    prompt = manager.get_user_prompt("test diff content", None, context)
+    assert context in prompt
+    assert "Additional context from the author" in prompt
+
+    prompt = manager.get_user_prompt("test diff content")
+    assert "Additional context from the author" not in prompt
+
+
+def test_get_user_prompt_xml_with_context(tmp_path):
+    """Author-provided context is appended after a custom XML prompt."""
+    xml_file = tmp_path / "custom.xml"
+    xml_file.write_text(
+        "<prompt><system>Test</system>"
+        "<user><changes-set></changes-set>"
+        "<vulnerabilities-set></vulnerabilities-set></user></prompt>"
+    )
+    manager = PromptManager(str(xml_file))
+    context = "release prep for v2"
+
+    prompt = manager.get_user_prompt("test diff content", None, context)
+    assert context in prompt
+    assert prompt.rstrip().endswith(context)

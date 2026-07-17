@@ -819,6 +819,7 @@ def test_main_with_vulns(
         from_commit=None,
         to_commit=None,
         working_tree=False,
+        context=None,
     )
     mock_openai_gen.return_value = "Test description"
 
@@ -983,6 +984,7 @@ def test_main_azure_gpt5_mini(mock_openai_gen, mock_azure_gen, mock_anthropic_ge
         from_commit=None,
         to_commit=None,
         working_tree=False,
+        context=None,
     )
     mock_azure_gen.return_value = "Test description"
 
@@ -1375,6 +1377,17 @@ class TestCommitRangeFunctionality:
         assert args.from_commit == "abc123"
         assert args.to_commit is None
         assert args.silent is True
+
+    def test_pr_command_accepts_context(self):
+        """Test that the pr command accepts a --context argument."""
+        from aipr.main import parse_args
+
+        args = parse_args(["pr", "--context", "upstream sync", "--silent"])
+        assert args.context == "upstream sync"
+
+        # Defaults to None when not provided
+        args = parse_args(["pr", "--silent"])
+        assert args.context is None
 
     def test_commit_range_help_text_includes_range_info(self):
         """Test that help text includes information about commit range functionality."""
