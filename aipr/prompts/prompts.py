@@ -5,7 +5,7 @@ import json
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 
 class InvalidPromptError(Exception):
@@ -109,8 +109,13 @@ class PromptManager:
         """Get the system prompt."""
         return self._default_system_prompt
 
-    def get_user_prompt(self, diff: str, vuln_data: Union[str, dict, None] = None) -> str:
-        """Get the user prompt with diff and optional vulnerability data."""
+    def get_user_prompt(
+        self,
+        diff: str,
+        vuln_data: Union[str, dict, None] = None,
+        context: Optional[str] = None,
+    ) -> str:
+        """Get the user prompt with diff, optional vulnerability data, and author context."""
         if self.prompt_name:
             if self._xml_prompt is None:
                 raise ValueError("XML prompt file was specified but could not be loaded")
@@ -146,33 +151,74 @@ class PromptManager:
             if xml_str.startswith("<?xml"):
                 xml_str = xml_str[xml_str.find("?>") + 2 :]
 
-            # Return the XML structure directly without wrapping it in additional text
-            return xml_str.strip()
+            # Return the XML structure directly, appending author context when given
+            result = xml_str.strip()
+            if context:
+                result += f"\n\nAdditional context from the author:\n{context}"
+            return result
 
         # Default format when no XML prompt file is specified
         prompt = [
-            "Please include:",
-            "- A concise summary of the changes",
-            "- Key modifications and their purpose",
-            "- Any notable technical details",
-            "- Security impact analysis (when vulnerability data is provided)",
+            "Write a merge request description with exactly this structure:",
             "",
-            "Important Guidelines:",
-            "1. Focus only on the specific changes shown in the diff and vulnerability comparison",
-            "2. Each point must be directly tied to actual code changes or security findings",
-            "3. When analyzing vulnerabilities:",
-            "   - Highlight critical security changes",
-            "   - Explain the impact of new vulnerabilities",
-            "   - Acknowledge fixed vulnerabilities",
-            "4. DO NOT include any of the following:",
-            '   - Generic concluding statements (e.g., "This improves the overall system")',
-            '   - Broad claims about improvements (e.g., "This enhances development processes")',
-            '   - Value judgments about the changes (e.g., "This is a significant improvement")',
-            "   - Future benefits or implications",
+            "## Summary",
+            "Briefly explain what this change does and why (2-3 sentences).",
             "",
-            "Git Diff:",
-            diff,
+            "## Changes",
+            "One bullet per major change: what was done.",
+            "",
+            "## Technical Details",
+            "Notable technical details relevant to the changes. Keep it short.",
         ]
+
+        if vuln_data:
+            prompt.extend(
+                [
+                    "",
+                    "## Security Analysis",
+                    "Summarize the vulnerability comparison: new, fixed, and unchanged findings.",
+                ]
+            )
+
+        prompt.extend(
+            [
+                "",
+                "Important Guidelines:",
+                "1. Focus only on the specific changes shown in the diff"
+                + (" and vulnerability comparison" if vuln_data else ""),
+                "2. Each point must be directly tied to actual code changes"
+                + (" or security findings" if vuln_data else ""),
+                '3. Only describe code as "new", "added", or "introduced" when the diff itself',
+                "   creates it; code visible in unchanged context lines, or merely renamed,",
+                "   moved, or modified, already existed",
+                "4. For documentation-only diffs, describe what was documented - do not credit",
+                "   the change with implementing the behavior it documents",
+                "5. DO NOT include any of the following:",
+                '   - Generic concluding statements (e.g., "This improves the overall system")',
+                '   - Broad claims about improvements (e.g., "This enhances development processes")',
+                '   - Value judgments about the changes (e.g., "This is a significant improvement")',
+                "   - Future benefits or implications",
+                "   - A security section when no vulnerability data is provided below",
+                "6. Be concise: prefer one precise sentence over three approximate ones",
+            ]
+        )
+
+        if context:
+            prompt.extend(
+                [
+                    "",
+                    "Additional context from the author (trust this over your own inference):",
+                    context,
+                ]
+            )
+
+        prompt.extend(
+            [
+                "",
+                "Git Diff:",
+                diff,
+            ]
+        )
 
         if vuln_data:
             prompt.extend(
