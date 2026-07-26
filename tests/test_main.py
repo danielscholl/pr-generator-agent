@@ -58,7 +58,13 @@ def test_version():
 # Model Detection Tests
 def test_detect_provider_and_model_defaults():
     """Test default model detection"""
-    # Test with Azure key first (highest priority as default)
+    # Test with Anthropic key (highest priority as default)
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
+        provider, model = detect_provider_and_model(None)
+        assert provider == "anthropic"
+        assert model == "claude-sonnet-5"
+
+    # Test with Azure key
     with patch.dict(
         "os.environ",
         {"AZURE_API_KEY": "test-key", "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com"},
@@ -67,12 +73,6 @@ def test_detect_provider_and_model_defaults():
         provider, model = detect_provider_and_model(None)
         assert provider == "azure"
         assert model == "gpt-5-nano"
-
-    # Test with Anthropic key
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
-        provider, model = detect_provider_and_model(None)
-        assert provider == "anthropic"
-        assert model == "claude-sonnet-5"
 
     # Test with OpenAI key
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
@@ -93,14 +93,32 @@ def test_detect_provider_and_model_defaults():
         assert model == "grok-code-fast-1"
 
 
+def test_detect_provider_prefers_anthropic_over_azure():
+    """With every provider configured, the default is Claude Sonnet 5."""
+    with patch.dict(
+        "os.environ",
+        {
+            "ANTHROPIC_API_KEY": "test-key",
+            "AZURE_API_KEY": "test-key",
+            "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+            "OPENAI_API_KEY": "test-key",
+            "GEMINI_API_KEY": "test-key",
+            "XAI_API_KEY": "test-key",
+        },
+        clear=True,
+    ):
+        assert detect_provider_and_model(None) == ("anthropic", "claude-sonnet-5")
+
+
 def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
         ("claude", ("anthropic", "claude-sonnet-5")),
         ("sonnet", ("anthropic", "claude-sonnet-5")),
-        ("opus", ("anthropic", "claude-opus-4-8")),
-        ("claude-opus", ("anthropic", "claude-opus-4-8")),
+        ("opus", ("anthropic", "claude-opus-5")),
+        ("claude-opus", ("anthropic", "claude-opus-5")),
+        ("haiku", ("anthropic", "claude-haiku-4-5")),
         ("azure", ("azure", "gpt-5-nano")),  # Updated default
         ("openai", ("openai", "gpt-5")),  # Updated default
         ("gemini", ("gemini", "gemini-2.5-flash")),  # Updated default
@@ -118,6 +136,8 @@ def test_detect_provider_and_model_aliases():
         # Anthropic models - direct names (current + still-active legacy pins)
         ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
         ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
+        ("claude-opus-5", ("anthropic", "claude-opus-5")),
+        ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
         ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
@@ -177,10 +197,13 @@ def test_detect_provider_and_model_anthropic():
     test_cases = [
         ("claude", ("anthropic", "claude-sonnet-5")),
         ("sonnet", ("anthropic", "claude-sonnet-5")),
-        ("opus", ("anthropic", "claude-opus-4-8")),
-        ("claude-opus", ("anthropic", "claude-opus-4-8")),
+        ("opus", ("anthropic", "claude-opus-5")),
+        ("claude-opus", ("anthropic", "claude-opus-5")),
+        ("haiku", ("anthropic", "claude-haiku-4-5")),
         ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
         ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
+        ("claude-opus-5", ("anthropic", "claude-opus-5")),
+        ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
         ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
         ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
@@ -1466,10 +1489,49 @@ class TestAnthropicRequestParams:
         params = _anthropic_extra_params("claude-opus-4-8")
         assert "temperature" not in params
 
+    def test_opus_5_omits_temperature_and_disables_thinking(self):
+        """Opus 5 rejects temperature; sending it would 400 every request."""
+        from aipr.providers import _anthropic_extra_params
+
+        params = _anthropic_extra_params("claude-opus-5")
+        assert "temperature" not in params
+        assert params["thinking"] == {"type": "disabled"}
+
     def test_legacy_models_keep_temperature(self):
         """Older Anthropic models keep the low-temperature setting."""
         from aipr.providers import _anthropic_extra_params
 
-        for model in ("claude-sonnet-4-6", "claude-sonnet-4-5-20250929"):
+        for model in ("claude-sonnet-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5"):
             params = _anthropic_extra_params(model)
             assert params == {"temperature": 0.2}
+
+    def test_every_supported_anthropic_model_is_classified(self):
+        """Guard the coupling between main.py's allowlist and the params table.
+
+        A model added to the allowlist but not classified here silently falls
+        through to the temperature branch, which 400s on current-generation
+        models.
+        """
+        from aipr.providers import _NO_SAMPLING_PARAMS, _anthropic_extra_params
+
+        rejects_sampling = {
+            "claude-opus-5",
+            "claude-sonnet-5",
+            "claude-opus-4-8",
+        }
+        accepts_sampling = {
+            "claude-haiku-4-5",
+            "claude-sonnet-4-6",
+            "claude-sonnet-4-5-20250929",
+            "claude-opus-4-1-20250805",
+        }
+
+        for model in rejects_sampling | accepts_sampling:
+            provider, resolved = detect_provider_and_model(model)
+            assert (provider, resolved) == ("anthropic", model)
+
+        for model in rejects_sampling:
+            assert model.startswith(_NO_SAMPLING_PARAMS)
+            assert "temperature" not in _anthropic_extra_params(model)
+        for model in accepts_sampling:
+            assert _anthropic_extra_params(model) == {"temperature": 0.2}

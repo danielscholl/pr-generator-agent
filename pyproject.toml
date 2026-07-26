@@ -10,10 +10,11 @@ authors = [
     {name = "Daniel Scholl", email = "daniel.scholl@microsoft.com"},
 ]
 dependencies = [
-    "anthropic>=0.18.1",
-    "gitpython>=3.1.42",
+    # 0.47.0 is the first release accepting the `thinking` request parameter,
+    # which aipr sends for every current-generation Anthropic model.
+    "anthropic>=0.47.0",
+    "gitpython>=3.1.48",
     "openai>=1.12.0",
-    "tiktoken>=0.6.0",
     "google-generativeai>=0.4.0"
 ]
 requires-python = ">=3.11"
