@@ -258,10 +258,16 @@ graph TB
 ## Pull Request Process
 
 1. **Automated Checks**: All PRs must pass `make check`
-2. **Architecture Review**: Large changes need ADR validation
-3. **AI Agent PRs**: Include session context in PR description
-4. **Human Review**: Maintainer reviews within 3 business days
-5. **Merge**: Once approved and checks pass, we'll merge your contribution
+2. **Conventional PR Title**: The PR title must be a valid conventional commit
+   subject (`type(scope): description`). PRs are squash-merged and the title
+   becomes the commit subject on `main`, which is what Release Please reads to
+   build the changelog and pick the version bump.
+3. **Architecture Review**: Large changes need ADR validation
+4. **AI Agent PRs**: Include session context in PR description
+5. **Human Review**: Maintainer reviews within 3 business days
+6. **Merge**: Once approved and checks pass, we'll squash-merge your contribution.
+   Merge commits are disabled — they put both the branch commit and the merge
+   commit on `main`, which made Release Please emit every change twice.
 
 ## License
 

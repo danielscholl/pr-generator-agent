@@ -1,4 +1,4 @@
-.PHONY: install check clean build pr clean-pyc
+.PHONY: install check clean clean-dist build pr clean-pyc
 
 # Virtual environment settings
 VENV := .venv
@@ -45,14 +45,21 @@ check: format lint test
 	@echo "\nAll checks passed!"
 	@echo "Next step: Ready to commit your changes"
 
-clean:
-	@echo "Cleaning up build artifacts and virtual environment..."
-	rm -rf dist/ build/ *.egg-info .coverage htmlcov/ .pytest_cache/ $(VENV)
+clean-dist:
+	@echo "Cleaning build artifacts..."
+	rm -rf dist/ build/ *.egg-info
+
+clean: clean-dist
+	@echo "Cleaning up caches and virtual environment..."
+	rm -rf .coverage htmlcov/ .pytest_cache/ $(VENV)
 	find . -name '__pycache__' -type d -exec rm -rf {} +
 	@echo "\nNext step:"
 	@echo "Run 'deactivate' to ensure python is not running in the virtual environment"
 
-build: clean
+# Depends on clean-dist, not clean: clean removes $(VENV), which this recipe
+# then needs to activate.
+build: clean-dist
+	@test -x $(VENV)/bin/python || { echo "No virtualenv at $(VENV). Run 'make install' first."; exit 1; }
 	. $(VENV)/bin/activate && python -m build
 
 # GitHub PR target
