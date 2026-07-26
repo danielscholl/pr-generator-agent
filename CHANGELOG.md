@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.6.1...v1.7.0) (2026-07-26)
+
+
+### Features
+
+* **providers:** default to anthropic and add opus 5/haiku models ([bde132b](https://github.com/danielscholl/pr-generator-agent/commit/bde132b194b1b04b2c031b0616b35c22691c10f8))
+* **providers:** default to anthropic and add opus 5/haiku models ([bdadb9f](https://github.com/danielscholl/pr-generator-agent/commit/bdadb9fe7b57bd3e1e3be4a6bedb2f116cf4ef83))
+
 ## [1.6.1](https://github.com/danielscholl/pr-generator-agent/compare/v1.6.0...v1.6.1) (2026-07-17)
 
 
