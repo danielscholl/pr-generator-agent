@@ -14,15 +14,35 @@ MAX_OUTPUT_TOKENS = 4000
 MAX_COMPLETION_TOKENS_REASONING = 8000
 
 
+# Anthropic models that reject non-default sampling parameters (temperature
+# returns a 400) and run adaptive thinking by default. Any model added to
+# aipr/main.py's Anthropic allowlist must be classified here, or it falls
+# through to the temperature branch and every request fails.
+#
+# Claude Fable 5 is deliberately absent: it also rejects temperature, but
+# rejects thinking={"type": "disabled"} as well, so it needs a third branch
+# rather than membership here.
+_NO_SAMPLING_PARAMS = (
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+)
+
+
 def _anthropic_extra_params(model: str) -> Dict[str, Any]:
     """Return per-model request parameters for Anthropic models.
 
-    Claude Sonnet 5 and Opus 4.8 reject non-default sampling parameters
-    (temperature returns a 400). Sonnet 5 also runs adaptive thinking by
-    default, which spends the output-token budget on reasoning - disable it
-    since description generation needs the full budget for visible output.
+    Args:
+        model: Resolved Anthropic model identifier.
+
+    Returns:
+        Extra keyword arguments to pass to the messages.create call. Thinking is
+        disabled on models that support the toggle, since description generation
+        needs the whole output-token budget for visible output rather than
+        reasoning.
     """
-    if model.startswith(("claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7")):
+    if model.startswith(_NO_SAMPLING_PARAMS):
         return {"thinking": {"type": "disabled"}}
     return {"temperature": 0.2}
 

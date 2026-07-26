@@ -6,7 +6,6 @@ import sys
 from typing import Any, Dict, Optional, Tuple
 
 import git
-import tiktoken
 
 from . import __version__
 from .commit import CommitAnalyzer, normalize_commit_message
@@ -36,7 +35,9 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         if model == "claude" or model == "sonnet":
             return "anthropic", "claude-sonnet-5"  # Default: Claude Sonnet 5
         if model == "opus" or model == "claude-opus":
-            return "anthropic", "claude-opus-4-8"  # Claude Opus 4.8
+            return "anthropic", "claude-opus-5"  # Claude Opus 5
+        if model == "haiku":
+            return "anthropic", "claude-haiku-4-5"  # Fastest, most economical
         if model == "azure":
             return "azure", "gpt-5-nano"  # Maps to deployment name in Azure
         if model == "openai":
@@ -91,9 +92,11 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         # Handle Anthropic models - current models plus still-active dated pins
         if model.startswith("claude"):
             anthropic_models = {
+                "claude-opus-5": "claude-opus-5",
                 "claude-sonnet-5": "claude-sonnet-5",
-                "claude-opus-4-8": "claude-opus-4-8",
+                "claude-haiku-4-5": "claude-haiku-4-5",
                 # Still-active previous generation and legacy pins
+                "claude-opus-4-8": "claude-opus-4-8",
                 "claude-sonnet-4-6": "claude-sonnet-4-6",
                 "claude-sonnet-4-5-20250929": "claude-sonnet-4-5-20250929",
                 "claude-opus-4-1-20250805": "claude-opus-4-1-20250805",
@@ -109,12 +112,13 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         if model == "grok-code-fast-1":
             return "xai", "grok-code-fast-1"
 
-    # No model specified, check environment for default
-    # Azure OpenAI has highest priority as default
-    if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
-        return "azure", "gpt-5-nano"  # Default provider and model
+    # No model specified, check environment for default.
+    # Anthropic has highest priority: conventional-commit type selection degrades
+    # badly on lightweight models, so the default must be a frontier model.
     if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-sonnet-5"  # Default: Claude Sonnet 5
+        return "anthropic", "claude-sonnet-5"  # Default provider and model
+    if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
+        return "azure", "gpt-5-nano"
     if os.getenv("OPENAI_API_KEY"):
         return "openai", "gpt-5"
     if os.getenv("GEMINI_API_KEY"):
@@ -126,28 +130,6 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         "No API key found. Please set AZURE_API_KEY (with AZURE_OPENAI_ENDPOINT), "
         "ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or XAI_API_KEY"
     )
-
-
-def count_tokens(text: str, model: str) -> int:
-    """Count the number of tokens in a text string."""
-    try:
-        if model.startswith(("gpt-3", "gpt-4")):
-            encoding = tiktoken.encoding_for_model(model)
-        else:
-            # Default to cl100k_base for other models (including Azure and Claude)
-            encoding = tiktoken.get_encoding("cl100k_base")
-        return len(encoding.encode(text))
-    except Exception:
-        # If we can't get a token count, return an estimate
-        return len(text) // 4  # Rough estimate of tokens
-
-
-def print_token_info(user_prompt: str, system_prompt: str, verbose: bool):
-    """Print token information for the prompts."""
-    if verbose:
-        print(f"System Prompt:\n{system_prompt}\n")
-        print(f"User Prompt:\n{user_prompt}\n")
-    # Add actual token counting if needed
 
 
 def print_separator(char="─", color=GREEN):
@@ -454,8 +436,10 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {GREEN}azure{ENDC} (default)                Azure OpenAI GPT-5 Nano
-  {YELLOW}claude{ENDC}                         Anthropic Claude Sonnet 5
+  {GREEN}claude{ENDC} (default)               Anthropic Claude Sonnet 5
+  {YELLOW}opus{ENDC}                           Anthropic Claude Opus 5
+  {YELLOW}haiku{ENDC}                          Anthropic Claude Haiku 4.5
+  {YELLOW}azure{ENDC}                          Azure OpenAI GPT-5 Nano
   {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
   {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
   {YELLOW}grok{ENDC}                           xAI Grok Code Fast 1
@@ -1167,27 +1151,12 @@ def handle_commit_command(args):
             print(commit_message)
 
         except Exception as e:
+            # Exit non-zero and emit nothing on stdout. `git commit -m "$(aipr
+            # commit)"` would otherwise commit whatever we printed, so a
+            # locally-guessed message here lands a wrong conventional type in
+            # history that nobody reviews.
             print(f"{RED}Error generating commit message: {e}{ENDC}", file=sys.stderr)
-
-            # Fallback to local analysis only for staged changes mode
-            if mode == "staged":
-                if not args.silent:
-                    print(f"{YELLOW}Falling back to local analysis...{ENDC}", file=sys.stderr)
-
-                try:
-                    commit_analyzer = CommitAnalyzer()
-                    fallback_message = commit_analyzer.generate_conventional_commit(context)
-                    print(fallback_message)
-                except Exception as fallback_error:
-                    print(f"{RED}Fallback failed: {fallback_error}{ENDC}", file=sys.stderr)
-                    sys.exit(1)
-            else:
-                # No fallback for commit range mode
-                print(
-                    f"{RED}AI generation failed for commit range mode. Local analysis not available for ranges.{ENDC}",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
+            sys.exit(1)
 
     except ValueError as e:
         print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)

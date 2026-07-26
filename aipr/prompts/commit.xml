@@ -126,7 +126,7 @@ Include password reset and multi-factor authentication flows</example>
 
 Includes global flags, argument validation, and help system
 Maintains backward compatibility with existing usage patterns</example>
-        <example type="single-feature" analysis="Updated requirements.txt with new dependencies">build(deps): add tiktoken and anthropic libraries</example>
+        <example type="single-feature" analysis="Updated requirements.txt with new dependencies">build(deps): add anthropic and gitpython libraries</example>
         <example type="single-feature" analysis="Widened an existing function's accepted domain">fix(types): extend identity slot domain to include sentinel
 
 Widen normalizeIdentitySlot to accept the out-of-ramp sentinel value</example>

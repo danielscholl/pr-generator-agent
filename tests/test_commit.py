@@ -2,6 +2,7 @@
 Tests for the commit message generation functionality
 """
 
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -196,82 +197,63 @@ diff --git a/module.py b/module.py
         # Should return None for mixed scopes
         assert scope is None
 
-    def test_generate_description_feat(self):
-        """Test description generation for features."""
+    def test_diff_headers_do_not_drive_fix_classification(self):
+        """A filename containing "error" must not make the change a fix.
+
+        Fix patterns are anchored on +/-, but used to be matched against every
+        line, so the `--- a/…` and `+++ b/…` headers of any path containing
+        "error", "bug", or "exception" scored as a fix.
+        """
         analyzer = CommitAnalyzer()
 
-        file_stats = {"files": [{"path": "src/auth.py", "status": "A"}]}
+        file_stats = {"files": [{"path": "src/error_handler.py", "status": "M"}], "total": 1}
+        diff_content = """diff --git a/src/error_handler.py b/src/error_handler.py
+--- a/src/error_handler.py
++++ b/src/error_handler.py
+@@ -1,2 +1,3 @@
+ def handle(value):
+     return value
++CONSTANT = 1
+"""
 
-        description = analyzer.generate_description("feat", "auth", file_stats, "")
-        assert "add authentication functionality" in description
+        assert analyzer._analyze_diff_content(diff_content) is None
+        assert analyzer.categorize_changes(file_stats, diff_content) == "chore"
 
-    def test_generate_description_fix(self):
-        """Test description generation for fixes."""
+    def test_added_imports_alone_are_not_a_feature(self):
+        """Imports accompany every kind of change and must not imply a feature."""
         analyzer = CommitAnalyzer()
 
-        file_stats = {"files": [{"path": "src/user.py", "status": "M"}]}
+        diff_content = """diff --git a/src/util.py b/src/util.py
++import os
++import sys
++from pathlib import Path
+"""
 
-        description = analyzer.generate_description("fix", "api", file_stats, "")
-        assert "resolve issue in user" in description
+        assert analyzer._analyze_diff_content(diff_content) is None
 
-    def test_generate_description_multiple_files(self):
-        """Test description generation for multiple files."""
+    def test_docs_only_change_mentioning_error_stays_docs(self):
+        """Content analysis must not override an all-docs change."""
         analyzer = CommitAnalyzer()
 
-        file_stats = {
-            "files": [
-                {"path": "src/module1.py", "status": "M"},
-                {"path": "src/module2.py", "status": "A"},
-                {"path": "src/module3.py", "status": "M"},
-            ]
-        }
+        file_stats = {"files": [{"path": "docs/guide.md", "status": "M"}], "total": 1}
+        diff_content = """diff --git a/docs/guide.md b/docs/guide.md
++Describe how the parser reports an error when input is malformed.
+"""
 
-        description = analyzer.generate_description("feat", None, file_stats, "")
-        assert "3 files" in description
+        assert analyzer._analyze_diff_content(diff_content) == "fix"
+        assert analyzer.categorize_changes(file_stats, diff_content) == "docs"
 
-    @patch("git.Repo")
-    def test_generate_conventional_commit(self, mock_repo_class):
-        """Test generating a complete conventional commit message."""
-        mock_repo = MagicMock()
-        mock_repo.git.diff.side_effect = [
-            "diff --git a/src/auth.py b/src/auth.py\n+def login():\n+    pass",  # staged diff
-            "A\tsrc/auth.py",  # name-status
-        ]
-        mock_repo_class.return_value = mock_repo
-
+    def test_removed_buggy_code_still_reads_as_fix(self):
+        """Deletions are real changes and must still feed fix detection."""
         analyzer = CommitAnalyzer()
 
-        commit_message = analyzer.generate_conventional_commit()
+        diff_content = """diff --git a/src/util.py b/src/util.py
+--- a/src/util.py
++++ b/src/util.py
+-    buggy_helper()
+"""
 
-        # Should be in format: type(scope): description
-        assert ":" in commit_message
-        parts = commit_message.split(":", 1)
-        assert len(parts) == 2
-
-        type_and_scope = parts[0].strip()
-        description = parts[1].strip()
-
-        # Should contain a valid type
-        assert any(
-            commit_type in type_and_scope for commit_type in analyzer.CONVENTIONAL_TYPES.keys()
-        )
-        assert len(description) > 0
-
-    @patch("git.Repo")
-    def test_generate_conventional_commit_with_context(self, mock_repo_class):
-        """Test generating conventional commit message with context."""
-        mock_repo = MagicMock()
-        mock_repo.git.diff.side_effect = [
-            "diff --git a/README.md b/README.md\n+New docs",
-            "M\tREADME.md",
-        ]
-        mock_repo_class.return_value = mock_repo
-
-        analyzer = CommitAnalyzer()
-
-        commit_message = analyzer.generate_conventional_commit("upstream sync")
-
-        assert "upstream sync" in commit_message
+        assert analyzer._analyze_diff_content(diff_content) == "fix"
 
 
 class TestCommitMainIntegration:
@@ -331,17 +313,20 @@ class TestCommitMainIntegration:
     @patch("aipr.main.CommitAnalyzer")
     @patch("aipr.main.generate_commit_message")
     @patch("aipr.main.detect_provider_and_model")
-    def test_handle_commit_command_with_fallback(
+    def test_handle_commit_command_ai_failure_exits_nonzero(
         self, mock_detect, mock_generate, mock_analyzer_class
     ):
-        """Test commit command with AI failure and fallback."""
-        # Setup mocks
+        """AI failure must exit non-zero without emitting a message on stdout.
+
+        `git commit -m "$(aipr commit)"` commits whatever reaches stdout, so a
+        locally-guessed fallback would land an unreviewed conventional type in
+        history.
+        """
         mock_analyzer = MagicMock()
         mock_analyzer.get_staged_changes.return_value = ("diff content", {"total": 1})
-        mock_analyzer.generate_conventional_commit.return_value = "feat: fallback message"
         mock_analyzer_class.return_value = mock_analyzer
 
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-6")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-5")
         mock_generate.side_effect = Exception("API Error")
 
         args = MagicMock()
@@ -353,14 +338,15 @@ class TestCommitMainIntegration:
         args.from_commit = None
         args.to_commit = None
 
-        # Test the function
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit", side_effect=SystemExit) as mock_exit:
             with patch("builtins.print") as mock_print:
-                handle_commit_command(args)
+                with pytest.raises(SystemExit):
+                    handle_commit_command(args)
 
-                # Verify fallback was used
-                mock_print.assert_called_with("feat: fallback message")
-                mock_exit.assert_not_called()
+        mock_exit.assert_called_with(1)
+        # Every message must go to stderr; stdout carries the commit message only.
+        for call in mock_print.call_args_list:
+            assert call.kwargs.get("file") is sys.stderr
 
     @patch("aipr.main.CommitAnalyzer")
     def test_handle_commit_command_debug_mode(self, mock_analyzer_class):
@@ -385,14 +371,15 @@ class TestCommitMainIntegration:
         args.to_commit = None
 
         # Test the function
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit", side_effect=SystemExit) as mock_exit:
             with patch("builtins.print") as mock_print:
-                handle_commit_command(args)
+                with pytest.raises(SystemExit):
+                    handle_commit_command(args)
 
-                # Verify debug output was printed
-                mock_exit.assert_called_with(0)
-                # Check that some debug info was printed
-                assert mock_print.call_count > 0
+        # Verify debug output was printed
+        mock_exit.assert_called_with(0)
+        # Check that some debug info was printed
+        assert mock_print.call_count > 0
 
 
 class TestCommitPromptGeneration:

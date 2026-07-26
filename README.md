@@ -111,13 +111,13 @@ docs: update installation and usage documentation
 
 The tool automatically detects which provider to use based on available environment variables, with the following priority order:
 
-1. **Azure OpenAI (Default - Highest Priority)**
+1. **Anthropic (Default - Highest Priority)**
+   - `ANTHROPIC_API_KEY`: Anthropic API key
+
+2. **Azure OpenAI**
    - `AZURE_API_KEY`: Azure OpenAI API key
    - `AZURE_OPENAI_ENDPOINT`: Azure endpoint URL
    - `AZURE_API_VERSION`: API version (default: "2024-02-15-preview")
-
-2. **Anthropic**
-   - `ANTHROPIC_API_KEY`: Anthropic API key
 
 3. **OpenAI**
    - `OPENAI_API_KEY`: OpenAI API key
@@ -195,17 +195,20 @@ Choose from multiple AI providers:
 | Provider | Model | Notes |
 |----------|--------|-------|
 | **Anthropic** | `claude-sonnet-5` | Claude Sonnet 5 (default) |
-| | `claude-opus-4-8` | Claude Opus 4.8 |
+| | `claude-opus-5` | Claude Opus 5 |
+| | `claude-haiku-4-5` | Claude Haiku 4.5 (fastest, most economical) |
+| | `claude-opus-4-8` | Claude Opus 4.8 (previous generation) |
 | | `claude-sonnet-4-6` | Claude Sonnet 4.6 (previous generation) |
 | | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (legacy pin) |
 | | `claude-opus-4-1-20250805` | Claude Opus 4.1 (legacy pin) |
 | | `claude`, `sonnet` | aliases for `claude-sonnet-5` |
-| | `opus`, `claude-opus` | aliases for `claude-opus-4-8` |
-| **Azure OpenAI** | `azure/gpt-5-mini` | default Azure model |
+| | `opus`, `claude-opus` | aliases for `claude-opus-5` |
+| | `haiku` | alias for `claude-haiku-4-5` |
+| **Azure OpenAI** | `azure/gpt-5-nano` | default Azure model |
 | | `azure/gpt-4.1-nano` | Lightweight model |
 | | `azure/gpt-5-chat` | Conversational model |
-| | `azure/gpt-5-nano` | Most lightweight model |
-| | `azure` | alias for `azure/gpt-5-mini` |
+| | `azure/gpt-5-mini` | Mid-tier model |
+| | `azure` | alias for `azure/gpt-5-nano` |
 | **OpenAI** | `gpt-5` | Latest GPT-5 model (default) |
 | | `gpt-5-mini` | Mid-tier GPT-5 model |
 | | `gpt-5-nano` | Lightweight GPT-5 model |

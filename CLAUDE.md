@@ -40,7 +40,9 @@ AIPR is an AI-powered tool that automatically generates comprehensive pull reque
 
 ### Provider-Specific Notes
 - **Azure OpenAI / OpenAI**: GPT-5 series and gpt-4.1 models require special handling (use `max_completion_tokens` instead of `max_tokens`, no custom temperature)
-- **Model Aliases**: "claude"/"sonnet" → claude-sonnet-5, "opus"/"claude-opus" → claude-opus-4-8, "azure" → gpt-5-nano, "openai" → gpt-5, "gemini" → gemini-2.5-flash, "grok"/"xai" → grok-code-fast-1
+- **Model Aliases**: "claude"/"sonnet" → claude-sonnet-5, "opus"/"claude-opus" → claude-opus-5, "haiku" → claude-haiku-4-5, "azure" → gpt-5-nano, "openai" → gpt-5, "gemini" → gemini-2.5-flash, "grok"/"xai" → grok-code-fast-1
+- **Provider Priority**: With no `-m` flag, provider is chosen by env var in order Anthropic → Azure → OpenAI → Gemini → xAI, so the default model is claude-sonnet-5
+- **Anthropic Request Params**: `_anthropic_extra_params` in `providers.py` splits models by whether they accept `temperature`. Any model added to the allowlist in `main.py` must be classified there too, or every request 400s
 
 ### Custom Prompts
 **PR Description Prompts** must be XML files with:
