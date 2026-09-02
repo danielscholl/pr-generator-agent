@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import git
 
@@ -43,6 +43,35 @@ def _split_subject(subject: str, limit: int) -> Tuple[str, str]:
     return subject[:break_at].rstrip(), subject[break_at:].strip()
 
 
+def strip_response_wrapping(message: str) -> List[str]:
+    """Return the lines of a raw model response without fences or preamble.
+
+    Leading and trailing markdown fences are removed, then any lines before
+    the first conventional-commit subject (e.g. "Here is your commit
+    message:") are dropped, along with leading blank lines.
+    """
+    lines = message.strip().splitlines()
+    while lines and _is_fence(lines[0]):
+        lines = lines[1:]
+    while lines and _is_fence(lines[-1]):
+        lines = lines[:-1]
+    subject_idx = next(
+        (i for i, line in enumerate(lines) if _COMMIT_SUBJECT_RE.match(line.strip())),
+        None,
+    )
+    if subject_idx:  # truthy => a subject was found at index > 0
+        lines = lines[subject_idx:]
+    while lines and not lines[0].strip():
+        lines = lines[1:]
+    return lines
+
+
+def raw_subject(message: str) -> str:
+    """Return the subject line the model produced, before any normalization."""
+    lines = strip_response_wrapping(message)
+    return lines[0].strip() if lines else ""
+
+
 def normalize_commit_message(message: str) -> str:
     """Normalize a raw AI-generated commit message into a well-formed commit.
 
@@ -66,27 +95,7 @@ def normalize_commit_message(message: str) -> str:
     if not message or not message.strip():
         return ""
 
-    lines = message.strip().splitlines()
-
-    # 1. Strip leading/trailing markdown code fences the model may wrap around
-    #    the message (handles ```, ```bash, and a fenced-then-preamble mix).
-    while lines and _is_fence(lines[0]):
-        lines = lines[1:]
-    while lines and _is_fence(lines[-1]):
-        lines = lines[:-1]
-
-    # 2. Drop any leading preamble before the real conventional-commit line
-    #    (e.g. "Here is your commit message:").
-    subject_idx = next(
-        (i for i, line in enumerate(lines) if _COMMIT_SUBJECT_RE.match(line.strip())),
-        None,
-    )
-    if subject_idx:  # truthy => a subject was found at index > 0
-        lines = lines[subject_idx:]
-
-    # 3. Separate the subject (first non-empty line) from the body.
-    while lines and not lines[0].strip():
-        lines = lines[1:]
+    lines = strip_response_wrapping(message)
     if not lines:
         return ""
 
@@ -414,6 +423,34 @@ class CommitAnalyzer:
                 return list(mapped_scopes)[0]
 
         return None
+
+    def get_repo_hints(self, recent: int = 5) -> str:
+        """Return branch name and recent subjects as context for the model.
+
+        A ``fix/`` branch is a strong hint that the type is fix, and recent
+        subjects pin the scope spelling the repository already uses.
+
+        Args:
+            recent: Number of recent commit subjects to include.
+
+        Returns:
+            A short plain-text block; the branch line is omitted on a detached
+            HEAD and the history lines when there are no commits yet.
+        """
+        lines = []
+        try:
+            if not self.repo.head.is_detached:
+                lines.append(f"Current branch: {self.repo.active_branch.name}")
+        except (TypeError, ValueError, git.exc.GitCommandError):
+            pass
+        try:
+            subjects = self.repo.git.log(f"-{recent}", "--format=%s").strip()
+        except (ValueError, git.exc.GitCommandError):
+            subjects = ""
+        if subjects:
+            lines.append("Recent commit subjects (reuse their scope spelling where it applies):")
+            lines.extend(f"  {s}" for s in subjects.splitlines())
+        return "\n".join(lines)
 
     def get_analysis_summary(self) -> Dict[str, any]:
         """Get a summary of the staged changes for debugging/verbose output."""

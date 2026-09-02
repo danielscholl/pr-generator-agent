@@ -1,147 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <prompt>
     <purpose>
-        Generate a conventional commit message from git changes: a single subject line,
-        optionally followed by ONE BLANK LINE and a short body of 1-2 detail lines.
-        Follow the conventional commit format: type(scope): description
-        Add a body only when changes are substantial or complex.
-        CRITICALLY ANALYZE the actual code changes in the diff to understand what was specifically implemented.
+        Write a conventional commit message for the git changes below. Output the message
+        only: a subject line, and for substantial changes one blank line followed by a body
+        of one or two lines. Base every word on what the diff actually changes.
     </purpose>
 
-    <analysis-strategy>
-        <step>1. Examine the diff content for new functions, classes, methods, and imports</step>
-        <step>2. Assess change scope: single feature vs. multiple features/areas</step>
-        <step>3. For single features: identify the PRIMARY purpose and implementation details</step>
-        <step>4. For commit ranges: identify multiple features and summarize the overall scope</step>
-        <step>5. Look for specific patterns: error handling, new APIs, data structures, algorithms</step>
-        <step>6. Generate a description that reflects the appropriate level of detail for the scope</step>
-    </analysis-strategy>
-
-    <range-analysis>
-        <detect-scope>
-            <small-change>Few files (1-5), focused functionality → single-feature analysis</small-change>
-            <medium-change>Multiple files (6-15), related changes → enhanced feature analysis</medium-change>
-            <large-change>Many files (15+), diverse changes → multi-feature range analysis</large-change>
-        </detect-scope>
-        <multi-feature-strategy>
-            <step>1. Identify distinct functional areas or features being added/modified</step>
-            <step>2. Determine the most significant or recent feature as the primary type</step>
-            <step>3. Summarize secondary features in additional lines</step>
-            <step>4. Focus on what was accomplished across the range, not individual commits</step>
-        </multi-feature-strategy>
-    </range-analysis>
-
-    <diff-analysis-patterns>
-        <pattern type="new-functions">Look for +def, +function, +const, +class patterns</pattern>
-        <pattern type="new-imports">New imports indicate dependencies and feature scope</pattern>
-        <pattern type="api-endpoints">REST endpoints, route handlers, URL patterns</pattern>
-        <pattern type="data-structures">New models, schemas, interfaces, types</pattern>
-        <pattern type="algorithms">Loops, conditionals, data processing logic</pattern>
-        <pattern type="error-handling">try/catch, error validation, exception handling</pattern>
-        <pattern type="tests">Test methods, assertions, mock setups</pattern>
-        <pattern type="config">Configuration files, environment variables, settings</pattern>
-    </diff-analysis-patterns>
-
     <instructions>
-        <always>Output a subject line, optionally followed by ONE BLANK LINE and a body of 1-2 lines</always>
-        <always>Subject line: type(scope): brief description (under 72 characters, ONE idea only)</always>
-        <always>Separate the subject from the body with exactly one blank line - git folds consecutive non-blank lines into a single run-on subject</always>
-        <always>Analyze the scope of changes: single feature vs. multiple features/areas</always>
-        <always>For large ranges: summarize multiple features instead of focusing on one</always>
-        <always>Add a body only when changes are substantial or affect multiple areas</always>
-        <always>Analyze actual code changes to determine what was specifically implemented</always>
-        <always>Use imperative mood in the description (add, implement, create - not adds, implements)</always>
-        <always>Be specific about what functionality was added (not generic "add functionality")</always>
-        <always>Extract meaningful details from function names, class names, and logic</always>
-        <always>Use lowercase for the first letter of description</always>
-        <always>No trailing periods in any line</always>
-        <always>Keep body lines under 80 characters each</always>
-        <never>Do not use generic descriptions like "add new functionality"</never>
-        <never>Do not use past tense (added, fixed) or present continuous (adding, fixing)</never>
-        <never>Do not add emojis or special characters</never>
-        <never>Do not exceed a subject plus 2 body lines</never>
-        <never>Do not put a second idea in the subject line - move it to the body</never>
-        <never>Do not include explanatory text or reasoning outside the commit message</never>
-        <never>For large ranges: do not focus solely on one feature when multiple exist</never>
-        <never>Do not say "add", "new", or "introduce" for code the diff does not create - code visible in unchanged context lines or merely renamed, moved, or widened already existed</never>
-        <never>For documentation-only changes: do not describe the documented behavior as if it were implemented - the commit documents existing behavior, it does not add it</never>
+        <subject>Format is type(scope): description, all on one line. Aim for 50 characters and stay at or below 72 including the type(scope): prefix. Before answering, count the subject; if it is too long, drop the scope or move detail into the body.</subject>
+        <subject>Imperative mood (add, fix, remove), lowercase first letter after the colon, no trailing period, no emoji.</subject>
+        <subject>One idea per subject. When the diff has several, the subject names the most significant one and the body covers the rest.</subject>
+        <body>Only when the change is substantial or touches several areas. Separate it from the subject with exactly one blank line; git folds consecutive non-blank lines into one run-on subject. At most two lines, each under 80 characters, each stating what the change does (not how the work went, and not filler like "leverage", "robust", "comprehensive", or "ensure").</body>
+        <accuracy>Say "add", "new", or "introduce" only for code the diff itself creates. Code visible in unchanged context lines, or that was renamed, moved, or widened, already existed; describe the actual change to it.</accuracy>
+        <accuracy>For documentation-only diffs, use type docs and describe what was documented; the commit does not implement the behavior it documents.</accuracy>
+        <accuracy>Prefer concrete names from the diff (functions, classes, flags, endpoints) over generic phrasing such as "add functionality" or "update code".</accuracy>
+        <output>Respond with the commit message alone: no markdown fences, no heading, no explanation before or after it.</output>
     </instructions>
 
     <commit-types>
-        <type name="feat">New feature or functionality (new APIs, components, capabilities)</type>
-        <type name="fix">Bug fix or error correction (resolving issues, fixing logic)</type>
-        <type name="docs">Documentation changes only (README, comments, guides)</type>
-        <type name="style">Code style changes (formatting, missing semicolons, whitespace)</type>
-        <type name="refactor">Code changes that neither fix bugs nor add features (restructuring)</type>
-        <type name="perf">Performance improvements (optimization, caching, efficiency)</type>
-        <type name="test">Adding or updating tests (unit tests, integration tests)</type>
-        <type name="build">Build system or dependency changes (package.json, requirements.txt)</type>
-        <type name="ci">CI/CD configuration changes (workflows, pipelines)</type>
-        <type name="chore">Maintenance tasks, configuration updates</type>
+        <type name="feat">Adds user-facing functionality that did not exist before</type>
+        <type name="fix">Corrects a bug or wrong behavior</type>
+        <type name="docs">Documentation only: README, guides, comments, docstrings</type>
+        <type name="style">Formatting and whitespace, no logic change</type>
+        <type name="refactor">Restructures existing code without adding features or fixing bugs, including renames, moves, and extractions</type>
+        <type name="perf">Improves performance</type>
+        <type name="test">Adds or updates tests only</type>
+        <type name="build">Build system or dependency changes (pyproject.toml, package.json, lockfiles)</type>
+        <type name="ci">CI/CD workflow or pipeline changes</type>
+        <type name="chore">Maintenance and configuration that fits no other type</type>
+        <note>Choose the type from the nature of the change, not its size. A large refactor is still refactor; a one-line new capability is still feat.</note>
     </commit-types>
 
     <scope-guidelines>
-        <guideline>Extract scope from the main area of change (module, component, service)</guideline>
-        <guideline>Use directory names or functional areas (auth, api, cli, parser, etc.)</guideline>
-        <guideline>Scope is optional - omit if change affects multiple areas or is global</guideline>
-        <guideline>Keep scope short and meaningful (max 10 characters)</guideline>
+        <guideline>Use the module, directory, or functional area most changed (auth, cli, api, parser).</guideline>
+        <guideline>Keep it short, about 10 characters or fewer. Omit it when the change spans many areas or is global.</guideline>
     </scope-guidelines>
 
-    <multi-line-guidelines>
-        <subject-only>Use a lone subject line for simple changes (single file, obvious functionality)</subject-only>
-        <one-body-line>Add one body line when detail improves understanding of the change</one-body-line>
-        <two-body-lines>Add two body lines for complex changes affecting multiple areas or components</two-body-lines>
-        <guideline>The body starts after exactly one blank line - never directly under the subject</guideline>
-        <guideline>Body lines should provide specific implementation details</guideline>
-        <guideline>Focus on what was implemented, not why or how it works</guideline>
-        <guideline>Each body line should add meaningful information</guideline>
-    </multi-line-guidelines>
+    <examples>
+        <example analysis="New OAuth class and JWT helpers added to auth module">feat(auth): implement OAuth2 login with JWT tokens
 
-    <detailed-examples>
-        <example type="single-feature" analysis="New OAuth class and JWT methods">feat(auth): implement OAuth2 authentication with JWT tokens
+Add login, logout, and token refresh endpoints
+Support multiple OAuth providers and session management</example>
+        <example analysis="Null check added in existing validation logic">fix(api): resolve null pointer in user validation
 
-Includes login, logout, and token refresh functionality
-Supports multiple OAuth providers and session management</example>
-        <example type="single-feature" analysis="Fixed null check in user validation logic">fix(api): resolve null pointer in user validation
-
-Add proper null checks before accessing user properties</example>
-        <example type="single-feature" analysis="Added CommitAnalyzer class with conventional commit logic">feat(commit): add conventional commit message generation
-
-Includes analysis of staged changes and file categorization
-Supports automatic type detection and scope determination</example>
-        <example type="range-multi-feature" analysis="Commit generation feature + CLI restructuring + documentation">feat: implement commit message generation with CLI improvements
-
-Add conventional commit analysis and subcommand architecture
-Include documentation updates and model configuration changes</example>
-        <example type="range-multi-feature" analysis="Authentication + API enhancements + test coverage">feat(auth): add OAuth2 with enhanced API validation
-
-Implement JWT token management and session handling
-Include comprehensive test coverage and error handling</example>
-        <example type="range-single-theme" analysis="Multiple related authentication improvements">feat(auth): enhance authentication system with OAuth2 support
-
-Add JWT tokens, session management, and security improvements
-Include password reset and multi-factor authentication flows</example>
-        <example type="single-feature" analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
-        <example type="single-feature" analysis="Enhanced argument parser with subcommands">feat(cli): add subcommand support for pr and commit commands
-
-Includes global flags, argument validation, and help system
-Maintains backward compatibility with existing usage patterns</example>
-        <example type="single-feature" analysis="Updated requirements.txt with new dependencies">build(deps): add anthropic and gitpython libraries</example>
-        <example type="single-feature" analysis="Widened an existing function's accepted domain">fix(types): extend identity slot domain to include sentinel
+Add null checks before accessing user properties</example>
+        <example analysis="Existing normalizeIdentitySlot widened to accept one more value">fix(types): extend identity slot domain to include sentinel
 
 Widen normalizeIdentitySlot to accept the out-of-ramp sentinel value</example>
-        <example type="single-feature" analysis="Docs list tools that already existed in the code">docs: list open_pr, resolve_review, and rollback in the tool catalog</example>
-        <example type="single-feature" analysis="Simple documentation update">docs: update installation instructions</example>
-    </detailed-examples>
+        <example analysis="Functions moved from main.py into a new module, no behavior change">refactor(cli): extract argument parsing into cli/args.py</example>
+        <example analysis="Docs list tools that already existed in the code">docs: list open_pr, resolve_review, and rollback in the tool catalog</example>
+        <example analysis="Small README edit">docs: update installation instructions</example>
+        <example analysis="New test methods for authentication flows">test(auth): add OAuth2 integration tests</example>
+        <example analysis="Dependency added to pyproject.toml">build(deps): add anthropic and gitpython libraries</example>
+        <example analysis="Commit range: commit generation feature plus CLI restructuring plus docs">feat: add commit message generation and CLI subcommands
 
-    <analysis-priorities>
-        <priority level="1">feat - New functionality takes precedence (new classes, methods, APIs)</priority>
-        <priority level="2">fix - Bug fixes are high priority (error handling, logic corrections)</priority>
-        <priority level="3">docs - Documentation-only changes</priority>
-        <priority level="4">test - Test-only changes</priority>
-        <priority level="5">build/ci - Infrastructure changes</priority>
-        <priority level="6">chore/refactor/style/perf - Other maintenance</priority>
-    </analysis-priorities>
+Add conventional commit analysis and subcommand architecture
+Update documentation and model configuration</example>
+    </examples>
 
     <staged-changes>
         {{staged_changes}}

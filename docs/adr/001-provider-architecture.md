@@ -58,8 +58,10 @@ def call_llm(model_name: str, system_prompt: str, user_prompt: str, temperature:
 
 ## Model Aliasing
 To improve user experience, we implement model aliases:
-- `"claude"` / `"sonnet"` → `"claude-sonnet-5"`
-- `"opus"` / `"claude-opus"` → `"claude-opus-4-8"`
+- `"claude"` / `"opus"` / `"claude-opus"` → `"claude-opus-5"` (default)
+- `"sonnet"` → `"claude-sonnet-5"`
+- `"fable"` → `"claude-fable-5-1"`
+- `"haiku"` → `"claude-haiku-4-5"`
 - `"azure"` → `"gpt-5-nano"`
 - `"openai"` → `"gpt-5"`
 - `"gemini"` → `"gemini-2.5-flash"`

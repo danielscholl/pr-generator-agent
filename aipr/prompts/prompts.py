@@ -23,10 +23,12 @@ class PromptManager:
         """Initialize the PromptManager with an optional custom prompt name."""
         self._default_system_prompt = (
             "You are a helpful assistant for generating Merge Requests.\n"
-            "Your task is to analyze Git changes and vulnerability comparison data to create "
-            "clear, well-structured merge request descriptions.\n"
-            "Response should end with the last specific change or security finding discussed.\n"
-            "If you find yourself wanting to write a concluding statement, stop writing instead."
+            "Your task is to analyze Git changes and vulnerability comparison data and write "
+            "the merge request description a reviewer will read before opening the diff.\n"
+            "The description says what the change is and why the code looks the way it does; "
+            "it is not a record of how the work went.\n"
+            "Respond with the description alone, in the structure the request asks for, and "
+            "end on the last concrete change or finding rather than a closing summary."
         )
 
         self.prompt_name = prompt_name
@@ -165,10 +167,11 @@ class PromptManager:
             "Briefly explain what this change does and why (2-3 sentences).",
             "",
             "## Changes",
-            "One bullet per major change: what was done.",
+            "One bullet per behavior changed, grouped by what it does rather than by file.",
             "",
             "## Technical Details",
-            "Notable technical details relevant to the changes. Keep it short.",
+            "Choices in the diff a reviewer would otherwise stop and question: what the code",
+            "does and why. Keep it short.",
         ]
 
         if vuln_data:
@@ -183,23 +186,33 @@ class PromptManager:
         prompt.extend(
             [
                 "",
-                "Important Guidelines:",
-                "1. Focus only on the specific changes shown in the diff"
-                + (" and vulnerability comparison" if vuln_data else ""),
-                "2. Each point must be directly tied to actual code changes"
-                + (" or security findings" if vuln_data else ""),
-                '3. Only describe code as "new", "added", or "introduced" when the diff itself',
-                "   creates it; code visible in unchanged context lines, or merely renamed,",
-                "   moved, or modified, already existed",
-                "4. For documentation-only diffs, describe what was documented - do not credit",
-                "   the change with implementing the behavior it documents",
-                "5. DO NOT include any of the following:",
-                '   - Generic concluding statements (e.g., "This improves the overall system")',
-                '   - Broad claims about improvements (e.g., "This enhances development processes")',
-                '   - Value judgments about the changes (e.g., "This is a significant improvement")',
-                "   - Future benefits or implications",
-                "   - A security section when no vulnerability data is provided below",
-                "6. Be concise: prefer one precise sentence over three approximate ones",
+                "Guidelines:",
+                "- Describe only what the diff"
+                + (" and vulnerability comparison" if vuln_data else "")
+                + " shows, tying each point to a specific change"
+                + (" or finding" if vuln_data else "")
+                + ".",
+                '- Call code "new", "added", or "introduced" only when the diff itself creates it;',
+                "  code in unchanged context lines, or that was renamed, moved, or modified,",
+                "  already existed.",
+                "- For documentation-only diffs, describe what was documented; the change does",
+                "  not implement the behavior it documents.",
+                "- Use exactly the sections above"
+                + ("." if vuln_data else "; there is no security section for this request.")
+                + " Keep every heading, but a section with little to say gets one sentence.",
+                "- Aim for roughly 150 to 350 words in total. Prefer one precise sentence over",
+                "  three approximate ones. Facts only: leave out closing summaries, value",
+                "  judgments, and predicted benefits.",
+                "- Describe the result, not the work. Leave out process narration (addressing",
+                "  review feedback, fixing an earlier commit on the branch), follow-up lists,",
+                "  test-plan checklists, and restatements of what the diff already shows.",
+                "- Plain engineer vocabulary, written as one engineer explaining a change to",
+                '  another. Avoid filler and grading words: "worth noting", "notably", "leverage",',
+                '  "robust", "seamless", "comprehensive", "holistic", "delve", "ensure" (say',
+                '  "make sure"), "honest", "principled", "proper", "clean", and calling a check',
+                '  a "signal".',
+                "- Punctuate with commas, colons, periods, or parentheses; no em-dashes or",
+                "  en-dashes.",
             ]
         )
 
@@ -292,25 +305,15 @@ class PromptManager:
     def get_commit_system_prompt(self) -> str:
         """Get the system prompt for commit message generation."""
         return (
-            "You are an expert code analyst and conventional commit message generator.\n\n"
-            "Your task: Analyze the provided git diff and generate a precise conventional commit message.\n\n"
-            "CRITICAL ANALYSIS REQUIREMENTS:\n"
-            "1. Read the diff content carefully - look for new functions, classes, methods, imports\n"
-            "2. Identify the PRIMARY functionality being implemented from the code changes\n"
-            "3. Extract specific details from function names, class names, and implementation logic\n"
-            "4. Determine the most accurate commit type based on actual code changes\n"
-            "5. Generate a description that reflects what was specifically implemented\n\n"
-            "OUTPUT FORMAT: type(scope): description\n"
-            "- type: feat/fix/docs/test/build/ci/chore/refactor/style/perf\n"
-            "- scope: optional, derived from the main area of change\n"
-            "- description: imperative mood, specific to the implementation\n\n"
-            "SUBJECT LINE RULES (STRICT):\n"
-            "- The subject is a SINGLE line: 'type(scope): description'\n"
-            "- Keep the subject under 72 characters - never emit a run-on subject\n"
-            "- Lowercase after the colon, imperative mood, no trailing period\n\n"
-            "OPTIONAL BODY:\n"
-            "- For substantial changes, add a body AFTER one blank line\n"
-            "- Put extra detail in the body instead of lengthening the subject\n"
-            "- Keep each body line under 80 characters\n\n"
-            "RESPOND WITH ONLY THE COMMIT MESSAGE - NO EXPLANATIONS OR ADDITIONAL TEXT."
+            "You write conventional commit messages from git diffs. The output goes straight "
+            "into `git commit -m`, so respond with the commit message alone: no markdown "
+            "fences, no explanation before or after it.\n\n"
+            "Format: a single subject line, type(scope): description, then for substantial "
+            "changes one blank line and a body of at most two lines under 80 characters each. "
+            "Aim for a 50 character subject and stay at or below 72 including the prefix; "
+            "move detail into the body rather than lengthening the subject. Imperative mood, "
+            "lowercase after the colon, no trailing period.\n\n"
+            "Choose the type from what the diff actually does: feat only for functionality "
+            "the diff creates, docs for documentation-only changes, refactor for restructuring "
+            "with no behavior change. Describe code as new only when the diff adds it."
         )

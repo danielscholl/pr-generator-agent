@@ -10,9 +10,9 @@ authors = [
     {name = "Daniel Scholl", email = "daniel.scholl@microsoft.com"},
 ]
 dependencies = [
-    # 0.47.0 is the first release accepting the `thinking` request parameter,
-    # which aipr sends for every current-generation Anthropic model.
-    "anthropic>=0.47.0",
+    # 0.120.0 is the version verified to accept output_config.effort and the
+    # beta fallbacks parameter that aipr sends to current Anthropic models.
+    "anthropic>=0.120.0",
     "gitpython>=3.1.48",
     "openai>=1.12.0",
     "google-generativeai>=0.4.0"
