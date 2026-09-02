@@ -13,7 +13,9 @@ from aipr.main import (
     YELLOW,
     compare_vulnerabilities,
     detect_provider_and_model,
+    handle_commit_command,
     main,
+    parse_args,
     run_trivy_scan,
 )
 from aipr.prompts import PromptManager
@@ -62,7 +64,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-sonnet-5"
+        assert model == "claude-opus-5"
 
     # Test with Azure key
     with patch.dict(
@@ -107,14 +109,14 @@ def test_detect_provider_prefers_anthropic_over_azure():
         },
         clear=True,
     ):
-        assert detect_provider_and_model(None) == ("anthropic", "claude-sonnet-5")
+        assert detect_provider_and_model(None) == ("anthropic", "claude-opus-5")
 
 
 def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-sonnet-5")),
+        ("claude", ("anthropic", "claude-opus-5")),
         ("sonnet", ("anthropic", "claude-sonnet-5")),
         ("opus", ("anthropic", "claude-opus-5")),
         ("claude-opus", ("anthropic", "claude-opus-5")),
@@ -139,8 +141,8 @@ def test_detect_provider_and_model_aliases():
         ("claude-opus-5", ("anthropic", "claude-opus-5")),
         ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
-        ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
+        ("fable", ("anthropic", "claude-fable-5-1")),
+        ("claude-fable-5-1", ("anthropic", "claude-fable-5-1")),
         # Gemini model aliases - only 2.5 series
         ("gemini-2.5-pro", ("gemini", "gemini-2.5-pro")),
         ("gemini-2.5-flash", ("gemini", "gemini-2.5-flash")),
@@ -195,7 +197,7 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude", ("anthropic", "claude-sonnet-5")),
+        ("claude", ("anthropic", "claude-opus-5")),
         ("sonnet", ("anthropic", "claude-sonnet-5")),
         ("opus", ("anthropic", "claude-opus-5")),
         ("claude-opus", ("anthropic", "claude-opus-5")),
@@ -205,8 +207,8 @@ def test_detect_provider_and_model_anthropic():
         ("claude-opus-5", ("anthropic", "claude-opus-5")),
         ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
         ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
-        ("claude-sonnet-4-5-20250929", ("anthropic", "claude-sonnet-4-5-20250929")),
-        ("claude-opus-4-1-20250805", ("anthropic", "claude-opus-4-1-20250805")),
+        ("fable", ("anthropic", "claude-fable-5-1")),
+        ("claude-fable-5-1", ("anthropic", "claude-fable-5-1")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
@@ -539,7 +541,7 @@ def test_main_target_branch_fallback(mock_repo_class, mock_generate, mock_repo, 
             pass
 
     # Verify fallback to 'main'
-    mock_repo.git.diff.assert_any_call("main...feature-branch")
+    mock_repo.git.diff.assert_any_call("main...HEAD")
 
     # Verify output
     captured = capsys.readouterr()
@@ -757,7 +759,7 @@ def mock_trivy():
 
 def test_main_anthropic(mock_repo, mock_anthropic):
     args = Mock(
-        model="claude-opus-4-1-20250805",
+        model="claude-opus-4-8",
         target="-",
         vulns=False,
         silent=True,
@@ -895,9 +897,9 @@ def test_main_with_vulns(
 def test_detect_provider_and_model():
     """Test provider and model detection"""
     # Test Anthropic models
-    provider, model = detect_provider_and_model("claude-opus-4-1-20250805")
+    provider, model = detect_provider_and_model("claude-opus-4-8")
     assert provider == "anthropic"
-    assert model == "claude-opus-4-1-20250805"
+    assert model == "claude-opus-4-8"
 
     # Test Azure OpenAI models with explicit azure/ prefix
     with patch.dict(
@@ -950,7 +952,12 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
     # Setup mock responses
     mock_anthropic_instance = mock_anthropic.return_value
     mock_anthropic_instance.messages.create.return_value = type(
-        "Response", (), {"content": [type("Content", (), {"text": "Test response"})()]}
+        "Response",
+        (),
+        {
+            "content": [type("Content", (), {"type": "text", "text": "Test response"})()],
+            "stop_reason": "end_turn",
+        },
     )
 
     mock_azure.return_value.chat.completions.create.return_value.choices = [
@@ -1474,36 +1481,49 @@ class TestCommitRangeFunctionality:
 class TestAnthropicRequestParams:
     """Per-model Anthropic request parameter selection."""
 
-    def test_sonnet_5_omits_temperature_and_disables_thinking(self):
-        """Sonnet 5 rejects temperature and needs thinking disabled."""
-        from aipr.providers import _anthropic_extra_params
+    def test_sonnet_5_uses_adaptive_thinking_and_effort(self):
+        """Sonnet 5 rejects temperature and takes adaptive thinking plus effort."""
+        from aipr.providers import ANTHROPIC_EFFORT, _anthropic_extra_params
 
         params = _anthropic_extra_params("claude-sonnet-5")
         assert "temperature" not in params
-        assert params["thinking"] == {"type": "disabled"}
+        assert params["thinking"] == {"type": "adaptive"}
+        assert params["output_config"] == {"effort": ANTHROPIC_EFFORT}
 
-    def test_opus_4_8_omits_temperature(self):
-        """Opus 4.8 rejects non-default sampling parameters."""
-        from aipr.providers import _anthropic_extra_params
-
-        params = _anthropic_extra_params("claude-opus-4-8")
-        assert "temperature" not in params
-
-    def test_opus_5_omits_temperature_and_disables_thinking(self):
-        """Opus 5 rejects temperature; sending it would 400 every request."""
+    def test_opus_5_uses_adaptive_thinking_and_effort(self):
+        """Opus 5 rejects temperature and disabled thinking leaks tags."""
         from aipr.providers import _anthropic_extra_params
 
         params = _anthropic_extra_params("claude-opus-5")
         assert "temperature" not in params
-        assert params["thinking"] == {"type": "disabled"}
+        assert params["thinking"] == {"type": "adaptive"}
+        assert "effort" in params["output_config"]
+
+    def test_fable_5_1_omits_thinking_parameter(self):
+        """Fable 5.1 rejects any explicit thinking config; effort is the only lever."""
+        from aipr.providers import _anthropic_extra_params
+
+        params = _anthropic_extra_params("claude-fable-5-1")
+        assert "thinking" not in params
+        assert "temperature" not in params
+        assert "effort" in params["output_config"]
 
     def test_legacy_models_keep_temperature(self):
         """Older Anthropic models keep the low-temperature setting."""
         from aipr.providers import _anthropic_extra_params
 
-        for model in ("claude-sonnet-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5"):
+        for model in ("claude-sonnet-4-6", "claude-haiku-4-5"):
             params = _anthropic_extra_params(model)
             assert params == {"temperature": 0.2}
+
+    def test_fallbacks_only_on_models_with_targets(self):
+        """Only models that publish fallback targets accept the parameter."""
+        from aipr.providers import _anthropic_uses_fallbacks
+
+        assert _anthropic_uses_fallbacks("claude-fable-5-1")
+        assert _anthropic_uses_fallbacks("claude-opus-5")
+        assert not _anthropic_uses_fallbacks("claude-sonnet-5")
+        assert not _anthropic_uses_fallbacks("claude-haiku-4-5")
 
     def test_every_supported_anthropic_model_is_classified(self):
         """Guard the coupling between main.py's allowlist and the params table.
@@ -1512,9 +1532,10 @@ class TestAnthropicRequestParams:
         through to the temperature branch, which 400s on current-generation
         models.
         """
-        from aipr.providers import _NO_SAMPLING_PARAMS, _anthropic_extra_params
+        from aipr.providers import _anthropic_extra_params
 
         rejects_sampling = {
+            "claude-fable-5-1",
             "claude-opus-5",
             "claude-sonnet-5",
             "claude-opus-4-8",
@@ -1522,8 +1543,6 @@ class TestAnthropicRequestParams:
         accepts_sampling = {
             "claude-haiku-4-5",
             "claude-sonnet-4-6",
-            "claude-sonnet-4-5-20250929",
-            "claude-opus-4-1-20250805",
         }
 
         for model in rejects_sampling | accepts_sampling:
@@ -1531,7 +1550,236 @@ class TestAnthropicRequestParams:
             assert (provider, resolved) == ("anthropic", model)
 
         for model in rejects_sampling:
-            assert model.startswith(_NO_SAMPLING_PARAMS)
             assert "temperature" not in _anthropic_extra_params(model)
         for model in accepts_sampling:
             assert _anthropic_extra_params(model) == {"temperature": 0.2}
+
+
+class TestAnthropicResponseHandling:
+    """Response and error handling for the Anthropic provider."""
+
+    @staticmethod
+    def _response(blocks, stop_reason="end_turn", details=None):
+        content = [type("Block", (), b)() for b in blocks]
+        return type(
+            "Response",
+            (),
+            {"content": content, "stop_reason": stop_reason, "stop_details": details},
+        )()
+
+    def test_extract_text_skips_thinking_blocks(self):
+        """With adaptive thinking on, the first block is not the text."""
+        from aipr.providers import _extract_text
+
+        response = self._response(
+            [
+                {"type": "thinking", "thinking": "..."},
+                {"type": "text", "text": "feat: add x"},
+            ]
+        )
+        assert _extract_text(response) == "feat: add x"
+
+    def test_extract_text_raises_on_refusal(self):
+        """A refusal must not become an empty commit message."""
+        from aipr.providers import _extract_text
+
+        details = type("Details", (), {"category": "cyber"})()
+        response = self._response([], stop_reason="refusal", details=details)
+        with pytest.raises(ValueError, match="declined.*cyber"):
+            _extract_text(response)
+
+    def test_extract_text_raises_on_truncation(self):
+        """A max_tokens stop means the description is incomplete."""
+        from aipr.providers import _extract_text
+
+        response = self._response([{"type": "text", "text": "partial"}], stop_reason="max_tokens")
+        with pytest.raises(ValueError, match="truncated"):
+            _extract_text(response)
+
+    def test_format_api_error_uses_server_message(self):
+        """The raw JSON body is replaced by the server's message."""
+        from aipr.providers import _format_api_error
+
+        error = type(
+            "Err",
+            (),
+            {
+                "body": {"error": {"message": "Your credit balance is too low"}},
+                "status_code": 400,
+            },
+        )()
+        assert _format_api_error(error) == "Your credit balance is too low (HTTP 400)"
+
+    def test_format_api_error_falls_back_to_str(self):
+        """Errors without a body keep their default rendering."""
+        from aipr.providers import _format_api_error
+
+        assert _format_api_error(RuntimeError("boom")) == "boom"
+
+    @patch("aipr.providers.anthropic.Anthropic")
+    def test_opus_5_request_goes_through_beta_with_fallbacks(self, mock_anthropic):
+        """Models with fallback targets use the beta endpoint and default fallbacks."""
+        client = mock_anthropic.return_value
+        client.beta.messages.create.return_value = self._response(
+            [{"type": "text", "text": "feat: x"}]
+        )
+        result = generate_with_anthropic("diff", None, "claude-opus-5", "system")
+        assert result == "feat: x"
+        kwargs = client.beta.messages.create.call_args.kwargs
+        assert kwargs["fallbacks"] == "default"
+        assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
+        assert kwargs["thinking"] == {"type": "adaptive"}
+        client.messages.create.assert_not_called()
+
+    @patch("aipr.providers.anthropic.Anthropic")
+    def test_sonnet_5_request_uses_stable_endpoint(self, mock_anthropic):
+        """Models without fallback targets stay on the stable endpoint."""
+        client = mock_anthropic.return_value
+        client.messages.create.return_value = self._response([{"type": "text", "text": "ok"}])
+        assert generate_with_anthropic("diff", None, "claude-sonnet-5", "system") == "ok"
+        kwargs = client.messages.create.call_args.kwargs
+        assert "fallbacks" not in kwargs
+        assert kwargs["output_config"] == {"effort": "medium"}
+        client.beta.messages.create.assert_not_called()
+
+
+class TestSubjectLengthRetry:
+    """One regeneration when the model overruns the subject cap."""
+
+    def test_raw_subject_skips_fences_preamble_and_blank_lines(self):
+        """Fences, preamble, and blank lines are skipped when finding the subject."""
+        from aipr.commit import raw_subject
+
+        assert raw_subject("```\n\nfeat: x\n\nbody\n```") == "feat: x"
+        assert raw_subject("Here is the message:\nfeat: " + "y" * 80) == "feat: " + "y" * 80
+        assert raw_subject("") == ""
+
+    def test_retry_context_mentions_limit_and_previous_subject(self):
+        """The retry context carries the limit and the offending subject."""
+        from aipr.main import _subject_retry_context
+
+        ctx = _subject_retry_context("upstream sync", "feat: " + "x" * 80)
+        assert ctx.startswith("upstream sync\n\n")
+        assert "at most 72 characters" in ctx
+        assert "x" * 80 in ctx
+
+    @patch("aipr.main.CommitAnalyzer")
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.generate_commit_message")
+    def test_overlong_subject_triggers_single_retry(self, mock_gen, mock_detect, mock_analyzer):
+        """An over-long subject causes exactly one regeneration."""
+        long_subject = "feat(scope): " + "word " * 20
+        mock_gen.side_effect = [long_subject, "feat(scope): short subject"]
+        mock_analyzer.return_value.get_staged_changes.return_value = ("diff", {"files": []})
+
+        args = parse_args(["commit", "-s"])
+        with patch("sys.exit"), patch("builtins.print") as mock_print:
+            handle_commit_command(args)
+
+        assert mock_gen.call_count == 2
+        retry_context = mock_gen.call_args_list[1].args[5]
+        assert "at most 72 characters" in retry_context
+        printed = [str(c.args[0]) for c in mock_print.call_args_list if c.args]
+        assert "feat(scope): short subject" in printed
+
+    @patch("aipr.main.CommitAnalyzer")
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.generate_commit_message", return_value="fix: short")
+    def test_short_subject_does_not_retry(self, mock_gen, mock_detect, mock_analyzer):
+        """A subject within the cap is accepted on the first call."""
+        mock_analyzer.return_value.get_staged_changes.return_value = ("diff", {"files": []})
+        args = parse_args(["commit", "-s"])
+        with patch("sys.exit"), patch("builtins.print"):
+            handle_commit_command(args)
+        assert mock_gen.call_count == 1
+
+
+class TestInputBudgetGuard:
+    """The commit command refuses an oversized diff before calling a provider."""
+
+    @patch("aipr.main.CommitAnalyzer")
+    @patch("aipr.main.generate_commit_message")
+    def test_oversized_diff_exits_without_api_call(self, mock_gen, mock_analyzer):
+        """An over-budget diff exits 1 before any provider call."""
+        mock_analyzer.return_value.get_staged_changes.return_value = ("x" * 5000, {"files": []})
+        args = parse_args(["commit", "-s", "--max-input-tokens", "100"])
+        with (
+            patch("sys.exit", side_effect=SystemExit) as mock_exit,
+            patch("builtins.print") as mock_print,
+        ):
+            with pytest.raises(SystemExit):
+                handle_commit_command(args)
+        mock_exit.assert_called_with(1)
+        mock_gen.assert_not_called()
+        assert any("Nothing was sent" in str(c) for c in mock_print.call_args_list)
+
+    @patch("aipr.main.CommitAnalyzer")
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.generate_commit_message", return_value="chore: bump lock")
+    def test_lock_file_noise_is_stripped_before_generation(self, mock_gen, mock_detect, mock_an):
+        """Lock file contents never reach the provider."""
+        diff = (
+            "diff --git a/uv.lock b/uv.lock\n" + "+junk\n" * 200 + "diff --git a/a.py b/a.py\n+ok"
+        )
+        mock_an.return_value.get_staged_changes.return_value = (diff, {"files": []})
+        args = parse_args(["commit", "-s"])
+        with patch("sys.exit"), patch("builtins.print"):
+            handle_commit_command(args)
+        sent = mock_gen.call_args.args[0]
+        assert "junk" not in sent
+        assert "+ok" in sent
+        assert "uv.lock" in sent
+
+
+class TestRepoHintsInCommitContext:
+    """Repo hints are appended to the commit context in staged mode."""
+
+    @patch("aipr.main.CommitAnalyzer")
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-opus-5"))
+    @patch("aipr.main.generate_commit_message", return_value="fix: x")
+    def test_hints_follow_author_context(self, mock_gen, mock_detect, mock_an):
+        """Author context comes first, then the branch and history hints."""
+        mock_an.return_value.get_staged_changes.return_value = ("+x", {"files": []})
+        mock_an.return_value.get_repo_hints.return_value = "Current branch: fix/a"
+        args = parse_args(["commit", "-s", "--context", "hotfix"])
+        with patch("sys.exit"), patch("builtins.print"):
+            handle_commit_command(args)
+        assert mock_gen.call_args.args[5] == "hotfix\n\nCurrent branch: fix/a"
+
+
+@patch("aipr.providers.AzureOpenAI")
+def test_azure_api_version_from_env(mock_azure):
+    """AZURE_API_VERSION overrides the built-in default."""
+    mock_azure.return_value.chat.completions.create.return_value.choices = [
+        type("Choice", (), {"message": type("Message", (), {"content": "ok"})()})()
+    ]
+    env = {
+        "AZURE_API_KEY": "k",
+        "AZURE_OPENAI_ENDPOINT": "https://x.openai.azure.com",
+        "AZURE_API_VERSION": "2025-04-01-preview",
+    }
+    with patch.dict("os.environ", env):
+        assert generate_with_azure_openai("d", None, "gpt-5-mini", "s") == "ok"
+    assert mock_azure.call_args.kwargs["api_version"] == "2025-04-01-preview"
+
+
+def test_run_trivy_scan_missing_binary_returns_empty(tmp_path):
+    """A missing trivy binary is a warning, not a crash."""
+    with patch("aipr.main.subprocess.run", side_effect=FileNotFoundError("trivy")):
+        assert run_trivy_scan(str(tmp_path), silent=True) == {}
+
+
+def test_pr_command_without_api_key_exits_cleanly():
+    """No provider key produces a one-line error on stderr, not a traceback."""
+    from aipr.main import handle_pr_command
+
+    args = parse_args(["pr", "-s"])
+    with (
+        patch.dict("os.environ", {}, clear=True),
+        patch("sys.exit", side_effect=SystemExit) as mock_exit,
+        patch("builtins.print") as mock_print,
+    ):
+        with pytest.raises(SystemExit):
+            handle_pr_command(args)
+    mock_exit.assert_called_with(1)
+    assert any("No API key found" in str(c) for c in mock_print.call_args_list)

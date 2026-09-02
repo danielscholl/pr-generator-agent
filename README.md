@@ -145,6 +145,7 @@ aipr pr [options]  # or just 'aipr' for backward compatibility
 - `--context`: Additional context for the PR description
 - `--from`: Starting commit for range analysis (SHA, branch, tag, etc.)
 - `--to`: Ending commit for range analysis (defaults to HEAD, requires --from)
+- `--max-input-tokens`: Refuse to call the API above this estimated input size (default 100000, 0 disables)
 
 **Global Options:**
 - `-v, --verbose`: Show API interaction details
@@ -168,6 +169,7 @@ aipr commit [options]
 - `--context`: Additional context for the commit message
 - `--from`: Starting commit for range analysis (SHA, branch, tag, etc.)
 - `--to`: Ending commit for range analysis (defaults to HEAD, requires --from)
+- `--max-input-tokens`: Refuse to call the API above this estimated input size (default 100000, 0 disables)
 
 **Examples:**
 ```bash
@@ -188,21 +190,30 @@ aipr commit --context "upstream sync"
 git commit -m "$(aipr commit)"
 ```
 
+## Cost Safeguards
+
+Before any API call, aipr shapes the diff and checks its size:
+
+- Lock files, minified bundles, images, notebooks, and build or vendor directories are replaced by a one-line marker. The model still sees that the file changed, not its contents.
+- A single file longer than 1500 diff lines is cut with a marker so one generated file cannot crowd out the rest.
+- The estimated input size is printed to stderr, and anything over the ceiling is refused with a clear message and a non-zero exit before a request is sent. Set the ceiling with `--max-input-tokens` or `AIPR_MAX_INPUT_TOKENS`; `0` disables it.
+- On the commit command, a subject line the model overruns past 72 characters triggers one rewrite request before the fallback wrap into the body. That retry resends the diff, so the worst case is twice the admitted budget.
+
 ## Supported AI Models
 
 Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| **Anthropic** | `claude-sonnet-5` | Claude Sonnet 5 (default) |
-| | `claude-opus-5` | Claude Opus 5 |
+| **Anthropic** | `claude-opus-5` | Claude Opus 5 (default) |
+| | `claude-sonnet-5` | Claude Sonnet 5 (lower cost) |
+| | `claude-fable-5-1` | Claude Fable 5.1 (most capable, highest cost) |
 | | `claude-haiku-4-5` | Claude Haiku 4.5 (fastest, most economical) |
 | | `claude-opus-4-8` | Claude Opus 4.8 (previous generation) |
 | | `claude-sonnet-4-6` | Claude Sonnet 4.6 (previous generation) |
-| | `claude-sonnet-4-5-20250929` | Claude Sonnet 4.5 (legacy pin) |
-| | `claude-opus-4-1-20250805` | Claude Opus 4.1 (legacy pin) |
-| | `claude`, `sonnet` | aliases for `claude-sonnet-5` |
-| | `opus`, `claude-opus` | aliases for `claude-opus-5` |
+| | `claude`, `opus`, `claude-opus` | aliases for `claude-opus-5` |
+| | `sonnet` | alias for `claude-sonnet-5` |
+| | `fable` | alias for `claude-fable-5-1` |
 | | `haiku` | alias for `claude-haiku-4-5` |
 | **Azure OpenAI** | `azure/gpt-5-nano` | default Azure model |
 | | `azure/gpt-4.1-nano` | Lightweight model |
@@ -219,6 +230,8 @@ Choose from multiple AI providers:
 | | `gemini` | alias for `gemini-2.5-flash` |
 | **xAI** | `grok-code-fast-1` | Specialized for coding tasks |
 | | `grok`, `xai` | aliases for `grok-code-fast-1` |
+
+Current-generation Anthropic models run with adaptive thinking at medium effort. Opus 5 and Fable 5.1 requests opt into Anthropic's server-side refusal fallback, so a diff the safety classifiers decline is retried on a fallback model instead of failing the commit.
 
 ## Custom Prompts
 

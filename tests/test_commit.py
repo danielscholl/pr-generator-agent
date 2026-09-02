@@ -542,3 +542,40 @@ def commit_analyzer_with_changes(temp_git_repo):
 
     analyzer = CommitAnalyzer(tmp_dir)
     return analyzer
+
+
+class TestRepoHints:
+    """Branch name and recent subjects offered to the model as context."""
+
+    def test_hints_include_branch_and_recent_subjects(self, tmp_path):
+        """A normal branch yields its name and the last subjects."""
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        repo.config_writer().set_value("user", "name", "t").release()
+        repo.config_writer().set_value("user", "email", "t@t").release()
+        (tmp_path / "a").write_text("1")
+        repo.index.add(["a"])
+        repo.index.commit("feat(core): first")
+        repo.git.checkout("-b", "fix/thing")
+
+        hints = CommitAnalyzer(str(tmp_path)).get_repo_hints()
+        assert "Current branch: fix/thing" in hints
+        assert "feat(core): first" in hints
+
+    def test_hints_survive_detached_head_and_empty_repo(self, tmp_path):
+        """Detached HEAD drops the branch line; an empty repo has no history lines."""
+        import git
+
+        repo = git.Repo.init(tmp_path)
+        assert "Recent commit" not in CommitAnalyzer(str(tmp_path)).get_repo_hints()
+
+        repo.config_writer().set_value("user", "name", "t").release()
+        repo.config_writer().set_value("user", "email", "t@t").release()
+        (tmp_path / "a").write_text("1")
+        repo.index.add(["a"])
+        sha = repo.index.commit("chore: init").hexsha
+        repo.git.checkout(sha)
+        hints = CommitAnalyzer(str(tmp_path)).get_repo_hints()
+        assert "Current branch" not in hints
+        assert "chore: init" in hints

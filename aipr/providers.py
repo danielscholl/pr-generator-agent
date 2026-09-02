@@ -5,46 +5,106 @@ from typing import Any, Dict, Optional
 import anthropic
 from openai import AzureOpenAI, OpenAI
 
-# Maximum visible output tokens for a generated description. PR descriptions
-# regularly exceed 1000 tokens and were shipping truncated mid-sentence.
-MAX_OUTPUT_TOKENS = 4000
+# Output-token ceiling for every provider. On current Anthropic models
+# adaptive thinking spends from the same budget as visible text, so this
+# has to leave room for both; it is a cap, not a target.
+MAX_OUTPUT_TOKENS = 16000
 
-# GPT-5 series models consume reasoning tokens from the same budget, so they
-# need extra headroom on top of the visible output.
-MAX_COMPLETION_TOKENS_REASONING = 8000
+# Thinking depth for Anthropic models that accept output_config.effort.
+# Commit messages and PR descriptions are short, single-shot classification
+# and summarization tasks; "medium" keeps type/scope selection reliable
+# without paying for deep reasoning on every diff.
+ANTHROPIC_EFFORT = "medium"
 
+# Beta header for the scalar fallbacks="default" form, which re-runs a
+# request the safety classifiers declined on a fallback model server-side.
+_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
-# Anthropic models that reject non-default sampling parameters (temperature
-# returns a 400) and run adaptive thinking by default. Any model added to
-# aipr/main.py's Anthropic allowlist must be classified here, or it falls
-# through to the temperature branch and every request fails.
-#
-# Claude Fable 5 is deliberately absent: it also rejects temperature, but
-# rejects thinking={"type": "disabled"} as well, so it needs a third branch
-# rather than membership here.
-_NO_SAMPLING_PARAMS = (
+# Models that reject an explicit thinking parameter entirely (thinking is
+# always on) and take effort via output_config only.
+_ALWAYS_THINKING = ("claude-fable-5",)
+
+# Models that reject sampling parameters (temperature returns a 400) and
+# support adaptive thinking plus output_config.effort.
+_ADAPTIVE_THINKING = (
     "claude-opus-5",
     "claude-opus-4-8",
-    "claude-opus-4-7",
     "claude-sonnet-5",
 )
+
+# Models with refusal fallback targets published on /v1/models. Only these
+# accept the fallbacks parameter; sending it elsewhere is a 400.
+_HAS_FALLBACKS = ("claude-fable-5", "claude-opus-5")
 
 
 def _anthropic_extra_params(model: str) -> Dict[str, Any]:
     """Return per-model request parameters for Anthropic models.
 
+    Any model added to aipr/main.py's Anthropic allowlist must be classified
+    here, or it falls through to the temperature branch and every request
+    to a current-generation model fails.
+
     Args:
         model: Resolved Anthropic model identifier.
 
     Returns:
-        Extra keyword arguments to pass to the messages.create call. Thinking is
-        disabled on models that support the toggle, since description generation
-        needs the whole output-token budget for visible output rather than
-        reasoning.
+        Extra keyword arguments to pass to the messages.create call.
     """
-    if model.startswith(_NO_SAMPLING_PARAMS):
-        return {"thinking": {"type": "disabled"}}
+    if model.startswith(_ALWAYS_THINKING):
+        return {"output_config": {"effort": ANTHROPIC_EFFORT}}
+    if model.startswith(_ADAPTIVE_THINKING):
+        return {
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": ANTHROPIC_EFFORT},
+        }
     return {"temperature": 0.2}
+
+
+def _anthropic_uses_fallbacks(model: str) -> bool:
+    """Return True when the model publishes refusal fallback targets."""
+    return model.startswith(_HAS_FALLBACKS)
+
+
+def _format_api_error(error: Exception) -> str:
+    """Return a one-line, human-readable message for an SDK exception.
+
+    The SDK's default string embeds the raw JSON error body; prefer the
+    server's message when the body carries one.
+    """
+    body = getattr(error, "body", None)
+    if isinstance(body, dict):
+        message = (
+            body.get("error", {}).get("message") if isinstance(body.get("error"), dict) else None
+        )
+        if message:
+            status = getattr(error, "status_code", None)
+            return f"{message} (HTTP {status})" if status else message
+    return str(error)
+
+
+def _extract_text(response: Any) -> str:
+    """Return the visible text of a Messages API response.
+
+    With thinking enabled the first content block is a thinking block, so
+    content[0].text is wrong; join every text block instead. A refusal is
+    surfaced as an error rather than an empty commit message.
+    """
+    stop_reason = getattr(response, "stop_reason", None)
+    if stop_reason == "refusal":
+        details = getattr(response, "stop_details", None)
+        category = getattr(details, "category", None)
+        suffix = f" (category: {category})" if category else ""
+        raise ValueError(f"The model declined to generate a response{suffix}")
+
+    text = "".join(
+        block.text for block in response.content if getattr(block, "type", None) == "text"
+    )
+    if stop_reason == "max_tokens":
+        raise ValueError(
+            f"Response was truncated at {MAX_OUTPUT_TOKENS} output tokens; "
+            "try a smaller diff or commit range"
+        )
+    return text
 
 
 def generate_with_anthropic(
@@ -58,16 +118,18 @@ def generate_with_anthropic(
     if verbose:
         print("\nInitializing Anthropic client...")
 
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    # Zero-arg client: the SDK resolves ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN.
+    client = anthropic.Anthropic()
     extra_params = _anthropic_extra_params(model)
+    use_fallbacks = _anthropic_uses_fallbacks(model)
 
     if verbose:
         print("\nSending request to Anthropic API:")
         print(f"  Model: {model}")
-        print(
-            "  Parameters:",
-            json.dumps({"max_tokens": MAX_OUTPUT_TOKENS, **extra_params}, indent=2),
-        )
+        shown = {"max_tokens": MAX_OUTPUT_TOKENS, **extra_params}
+        if use_fallbacks:
+            shown["fallbacks"] = "default"
+        print("  Parameters:", json.dumps(shown, indent=2))
         print("\nRequest Messages:")
         print("\nSYSTEM MESSAGE:")
         print(system_prompt)
@@ -78,20 +140,35 @@ def generate_with_anthropic(
             print(diff)
         print("\nMaking API call...")
 
+    request = {
+        "model": model,
+        "max_tokens": MAX_OUTPUT_TOKENS,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": diff}],
+        **extra_params,
+    }
+
     try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=MAX_OUTPUT_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": diff}],
-            **extra_params,
-        )
+        if use_fallbacks:
+            response = client.beta.messages.create(
+                betas=[_FALLBACK_BETA], fallbacks="default", **request
+            )
+        else:
+            response = client.messages.create(**request)
         if verbose:
             print("\nRaw API Response:")
             print(f"  Model: {response.model}")
+            print(f"  Stop reason: {response.stop_reason}")
             print(f"  Usage: {response.usage.model_dump() if response.usage else 'N/A'}")
             print("\nResponse Content:")
-        return response.content[0].text
+        return _extract_text(response)
+    except anthropic.APIError as e:
+        message = _format_api_error(e)
+        if verbose:
+            print(f"\nAPI Error: {message}")
+        raise ValueError(f"Anthropic API error: {message}")
+    except ValueError:
+        raise
     except Exception as e:
         if verbose:
             print(f"\nAPI Error: {str(e)}")
@@ -109,6 +186,7 @@ def generate_with_azure_openai(
     # Check required environment variables
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     api_key = os.getenv("AZURE_API_KEY")
+    api_version = os.getenv("AZURE_API_VERSION", "2024-02-15-preview")
 
     if not endpoint or not api_key:
         raise ValueError(
@@ -120,11 +198,11 @@ def generate_with_azure_openai(
         if verbose:
             print("\nInitializing Azure OpenAI client with:")
             print(f"  Endpoint: {endpoint}")
-            print("  API Version: 2024-02-15-preview")
+            print(f"  API Version: {api_version}")
 
         client = AzureOpenAI(
             api_key=api_key,
-            api_version="2024-02-15-preview",
+            api_version=api_version,
             azure_endpoint=endpoint,
         )
 
@@ -142,7 +220,7 @@ def generate_with_azure_openai(
             kwargs = {
                 "model": model,
                 "messages": messages,
-                "max_completion_tokens": MAX_COMPLETION_TOKENS_REASONING,
+                "max_completion_tokens": MAX_OUTPUT_TOKENS,
                 # temperature parameter not supported - uses default (1.0)
             }
         else:
@@ -222,7 +300,7 @@ def generate_with_openai(
         kwargs = {
             "model": model,
             "messages": messages,
-            "max_completion_tokens": MAX_COMPLETION_TOKENS_REASONING,
+            "max_completion_tokens": MAX_OUTPUT_TOKENS,
             # temperature parameter not supported - uses default (1.0)
         }
     else:

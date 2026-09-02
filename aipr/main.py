@@ -8,10 +8,12 @@ from typing import Any, Dict, Optional, Tuple
 import git
 
 from . import __version__
-from .commit import CommitAnalyzer, normalize_commit_message
+from .commit import MAX_SUBJECT_LENGTH, CommitAnalyzer, normalize_commit_message, raw_subject
+from .gitdiff import check_input_budget, filter_diff, resolve_max_input_tokens
 from .prompts import InvalidPromptError, PromptManager
 from .providers import (
     MAX_OUTPUT_TOKENS,
+    _anthropic_extra_params,
     generate_with_anthropic,
     generate_with_azure_openai,
     generate_with_gemini,
@@ -32,12 +34,14 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     """Detect which provider and model to use based on environment and args."""
     if model:
         # Handle simple aliases first
-        if model == "claude" or model == "sonnet":
-            return "anthropic", "claude-sonnet-5"  # Default: Claude Sonnet 5
-        if model == "opus" or model == "claude-opus":
-            return "anthropic", "claude-opus-5"  # Claude Opus 5
+        if model == "claude" or model == "opus" or model == "claude-opus":
+            return "anthropic", "claude-opus-5"  # Default: Claude Opus 5
+        if model == "sonnet":
+            return "anthropic", "claude-sonnet-5"  # Lower cost, looser format adherence
         if model == "haiku":
             return "anthropic", "claude-haiku-4-5"  # Fastest, most economical
+        if model == "fable":
+            return "anthropic", "claude-fable-5-1"  # Most capable, highest cost
         if model == "azure":
             return "azure", "gpt-5-nano"  # Maps to deployment name in Azure
         if model == "openai":
@@ -89,17 +93,16 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
                 )
             return "openai", openai_models[model]
 
-        # Handle Anthropic models - current models plus still-active dated pins
+        # Handle Anthropic models - current generation plus still-served previous
+        # generation. Every entry must be classified in providers.py.
         if model.startswith("claude"):
             anthropic_models = {
+                "claude-fable-5-1": "claude-fable-5-1",
                 "claude-opus-5": "claude-opus-5",
                 "claude-sonnet-5": "claude-sonnet-5",
                 "claude-haiku-4-5": "claude-haiku-4-5",
-                # Still-active previous generation and legacy pins
                 "claude-opus-4-8": "claude-opus-4-8",
                 "claude-sonnet-4-6": "claude-sonnet-4-6",
-                "claude-sonnet-4-5-20250929": "claude-sonnet-4-5-20250929",
-                "claude-opus-4-1-20250805": "claude-opus-4-1-20250805",
             }
             if model not in anthropic_models:
                 raise ValueError(
@@ -115,8 +118,8 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     # No model specified, check environment for default.
     # Anthropic has highest priority: conventional-commit type selection degrades
     # badly on lightweight models, so the default must be a frontier model.
-    if os.getenv("ANTHROPIC_API_KEY"):
-        return "anthropic", "claude-sonnet-5"  # Default provider and model
+    if os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"):
+        return "anthropic", "claude-opus-5"  # Default provider and model
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
         return "azure", "gpt-5-nano"
     if os.getenv("OPENAI_API_KEY"):
@@ -282,6 +285,12 @@ def run_trivy_scan(path: str, silent: bool = False, verbose: bool = False) -> Di
         # Run trivy scan
         result = subprocess.run(trivy_args, capture_output=True, text=True, check=True)
         return json.loads(result.stdout)
+    except FileNotFoundError:
+        print(
+            f"{YELLOW}Warning: trivy not found on PATH; skipping vulnerability scan.{ENDC}",
+            file=sys.stderr,
+        )
+        return {}
     except subprocess.CalledProcessError as e:
         print(f"{RED}Error running trivy scan: {e}{ENDC}", file=sys.stderr)
         if e.stderr:
@@ -436,9 +445,10 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {GREEN}claude{ENDC} (default)               Anthropic Claude Sonnet 5
-  {YELLOW}opus{ENDC}                           Anthropic Claude Opus 5
+  {GREEN}claude{ENDC} (default)               Anthropic Claude Opus 5
+  {YELLOW}sonnet{ENDC}                         Anthropic Claude Sonnet 5
   {YELLOW}haiku{ENDC}                          Anthropic Claude Haiku 4.5
+  {YELLOW}fable{ENDC}                          Anthropic Claude Fable 5.1
   {YELLOW}azure{ENDC}                          Azure OpenAI GPT-5 Nano
   {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
   {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
@@ -525,6 +535,12 @@ prompt templates (use with -p flag):
         help="Ending commit for range analysis (defaults to HEAD, requires --from)",
     )
     pr_parser.add_argument("--context", help="Additional context for the PR description")
+    pr_parser.add_argument(
+        "--max-input-tokens",
+        type=int,
+        help="Refuse to call the API when the estimated input exceeds this many tokens "
+        "(default 100000, 0 disables; env AIPR_MAX_INPUT_TOKENS)",
+    )
 
     # Commit command (generate commit messages)
     commit_parser = subparsers.add_parser(
@@ -555,6 +571,12 @@ prompt templates (use with -p flag):
         help="Format for commit message (default: conventional)",
     )
     commit_parser.add_argument("--context", help="Additional context for the commit message")
+    commit_parser.add_argument(
+        "--max-input-tokens",
+        type=int,
+        help="Refuse to call the API when the estimated input exceeds this many tokens "
+        "(default 100000, 0 disables; env AIPR_MAX_INPUT_TOKENS)",
+    )
     commit_parser.add_argument(
         "--from",
         dest="from_commit",
@@ -635,6 +657,7 @@ prompt templates (use with -p flag):
                 self.working_tree = False
                 self.prompt = None
                 self.context = None
+                self.max_input_tokens = None
 
         # Check if original args had pr-specific flags
         if args is not None:
@@ -820,6 +843,25 @@ def get_vulnerability_data() -> Optional[str]:
         return None
 
 
+def prepare_diff(diff: str, args, silent: bool) -> str:
+    """Filter noise out of a diff and enforce the input-token ceiling.
+
+    Runs before any provider call so an oversized change is refused unbilled.
+
+    Raises:
+        ValueError: When the estimated input exceeds the configured ceiling.
+    """
+    filtered = filter_diff(diff)
+    if filtered.notes and not silent:
+        print(f"{YELLOW}Note: {filtered.notes}{ENDC}", file=sys.stderr)
+    flag = getattr(args, "max_input_tokens", None)
+    limit = resolve_max_input_tokens(flag if isinstance(flag, int) else None)
+    estimate = check_input_budget(filtered.text, limit)
+    if not silent:
+        print(f"{BLUE}Estimated diff size: ~{estimate:,} tokens{ENDC}", file=sys.stderr)
+    return filtered.text
+
+
 def generate_description(
     diff: str,
     vuln_data: Optional[str],
@@ -889,7 +931,7 @@ def handle_pr_command(args):
     try:
         prompt_manager = PromptManager(getattr(args, "prompt", None))
     except InvalidPromptError as e:
-        print(f"{RED}Error: {str(e)}{ENDC}")
+        print(f"{RED}Error: {str(e)}{ENDC}", file=sys.stderr)
         sys.exit(1)
 
     # Validate arguments
@@ -899,7 +941,11 @@ def handle_pr_command(args):
         print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
         sys.exit(1)
 
-    provider, model = detect_provider_and_model(args.model)
+    try:
+        provider, model = detect_provider_and_model(args.model)
+    except Exception as e:
+        print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
+        sys.exit(1)
 
     # Determine which mode to use and get the diff
     mode = determine_pr_mode(args)
@@ -930,7 +976,7 @@ def handle_pr_command(args):
             target = args.target
             if not args.silent:
                 print(f"{BLUE}Comparing with {target}...{ENDC}", file=sys.stderr)
-            diff = repo.git.diff(f"{target}...{repo.active_branch.name}")
+            diff = repo.git.diff(f"{target}...HEAD")
 
         else:  # mode == "auto"
             # Auto-detect mode (existing behavior)
@@ -950,7 +996,7 @@ def handle_pr_command(args):
                 if target:
                     if not args.silent:
                         print(f"{BLUE}Comparing with {target}...{ENDC}", file=sys.stderr)
-                    diff = repo.git.diff(f"{target}...{repo.active_branch.name}")
+                    diff = repo.git.diff(f"{target}...HEAD")
                 else:
                     print(f"{YELLOW}No suitable target branch found.{ENDC}", file=sys.stderr)
                     sys.exit(1)
@@ -958,6 +1004,8 @@ def handle_pr_command(args):
         if not diff.strip():
             print("No changes found in the Git repository.", file=sys.stderr)
             sys.exit(0)
+
+        diff = prepare_diff(diff, args, args.silent)
 
     except ValueError as e:
         print(f"{RED}Error: {e}{ENDC}", file=sys.stderr)
@@ -992,7 +1040,7 @@ def handle_pr_command(args):
                     "system": system_prompt,
                     "messages": [{"role": "user", "content": user_prompt}],
                     "max_tokens": MAX_OUTPUT_TOKENS,
-                    "temperature": 0.2,
+                    **_anthropic_extra_params(model),
                 }
             elif provider == "gemini":
                 # Structure for Gemini
@@ -1066,6 +1114,18 @@ def handle_pr_command(args):
         sys.exit(1)
 
 
+def _subject_retry_context(context: str, subject: str) -> str:
+    """Build the context for a retry after an over-long subject line."""
+    note = (
+        f"Your previous subject line was {len(subject)} characters:\n"
+        f"  {subject}\n"
+        f"The subject line must be at most {MAX_SUBJECT_LENGTH} characters including "
+        "the type(scope): prefix. Rewrite it shorter and complete - drop the scope or "
+        "move detail into the body rather than truncating the phrase."
+    )
+    return f"{context}\n\n{note}" if context else note
+
+
 def handle_commit_command(args):
     """Handle the commit command (commit message generation)."""
     try:
@@ -1110,6 +1170,7 @@ def handle_commit_command(args):
             # Staged changes mode (existing behavior)
             commit_analyzer = CommitAnalyzer()
             changes, file_summary = commit_analyzer.get_staged_changes()
+            repo_hints = commit_analyzer.get_repo_hints()
 
             if args.debug:
                 # Show analysis without generating AI response
@@ -1124,6 +1185,7 @@ def handle_commit_command(args):
                 print(preview)
                 sys.exit(0)
 
+        changes = prepare_diff(changes, args, args.silent)
         provider, model = detect_provider_and_model(args.model)
 
         if not args.silent:
@@ -1131,14 +1193,37 @@ def handle_commit_command(args):
             print(f"{BLUE}Analyzing {mode_text}...{ENDC}", file=sys.stderr)
             print(f"Using {provider} ({model})...", file=sys.stderr)
 
-        # Get context if provided
+        # Author context first, then branch name and recent subjects so type
+        # and scope stay consistent with the repository's history.
         context = getattr(args, "context", "") or ""
+        if mode == "staged" and repo_hints:
+            context = f"{context}\n\n{repo_hints}" if context else repo_hints
 
         try:
             # Generate commit message using AI
             commit_message = generate_commit_message(
                 changes, file_summary, provider, model, args.verbose, context
             )
+
+            # Models habitually overrun the subject cap by a few words. Wrapping
+            # the overflow into the body leaves a subject that ends mid-phrase,
+            # so give the model one chance to rewrite before falling back to that.
+            subject = raw_subject(commit_message)
+            if len(subject) > MAX_SUBJECT_LENGTH:
+                if not args.silent:
+                    print(
+                        f"{YELLOW}Subject is {len(subject)} characters; "
+                        f"asking for a shorter rewrite...{ENDC}",
+                        file=sys.stderr,
+                    )
+                commit_message = generate_commit_message(
+                    changes,
+                    file_summary,
+                    provider,
+                    model,
+                    args.verbose,
+                    _subject_retry_context(context, subject),
+                )
 
             # Normalize the response into a well-formed conventional commit
             # (single-line subject, blank-line body, length-bounded subject).
