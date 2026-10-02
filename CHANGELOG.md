@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.7.0...v1.8.0) (2026-10-02)
+
+
+### Features
+
+* add input-token budget guard and switch default to opus 5 ([ed7ee27](https://github.com/danielscholl/pr-generator-agent/commit/ed7ee277604b8a0ebd24ca648b2fe6d7b9d69f38))
+* **models:** switch to claude-sonnet-5-5 and gpt-6-luna ([#80](https://github.com/danielscholl/pr-generator-agent/issues/80)) ([0046bbd](https://github.com/danielscholl/pr-generator-agent/commit/0046bbd113fb715222044e9a84c4a940d77e79eb))
+* refresh anthropic models and add input cost safeguards ([#77](https://github.com/danielscholl/pr-generator-agent/issues/77)) ([ed7ee27](https://github.com/danielscholl/pr-generator-agent/commit/ed7ee277604b8a0ebd24ca648b2fe6d7b9d69f38))
+
 ## [1.7.0](https://github.com/danielscholl/pr-generator-agent/compare/v1.6.1...v1.7.0) (2026-07-26)
 
 
