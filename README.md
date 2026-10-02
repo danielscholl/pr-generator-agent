@@ -205,25 +205,15 @@ Choose from multiple AI providers:
 
 | Provider | Model | Notes |
 |----------|--------|-------|
-| **Anthropic** | `claude-opus-5` | Claude Opus 5 (default) |
-| | `claude-sonnet-5` | Claude Sonnet 5 (lower cost) |
-| | `claude-fable-5-1` | Claude Fable 5.1 (most capable, highest cost) |
-| | `claude-haiku-4-5` | Claude Haiku 4.5 (fastest, most economical) |
-| | `claude-opus-4-8` | Claude Opus 4.8 (previous generation) |
-| | `claude-sonnet-4-6` | Claude Sonnet 4.6 (previous generation) |
-| | `claude`, `opus`, `claude-opus` | aliases for `claude-opus-5` |
-| | `sonnet` | alias for `claude-sonnet-5` |
-| | `fable` | alias for `claude-fable-5-1` |
-| | `haiku` | alias for `claude-haiku-4-5` |
+| **Anthropic** | `claude-sonnet-5-5` | Claude Sonnet 5.5 (default) |
+| | `claude`, `sonnet` | aliases for `claude-sonnet-5-5` |
 | **Azure OpenAI** | `azure/gpt-5-nano` | default Azure model |
 | | `azure/gpt-4.1-nano` | Lightweight model |
 | | `azure/gpt-5-chat` | Conversational model |
 | | `azure/gpt-5-mini` | Mid-tier model |
 | | `azure` | alias for `azure/gpt-5-nano` |
-| **OpenAI** | `gpt-5` | Latest GPT-5 model (default) |
-| | `gpt-5-mini` | Mid-tier GPT-5 model |
-| | `gpt-5-nano` | Lightweight GPT-5 model |
-| | `openai` | alias for `gpt-5` |
+| **OpenAI** | `gpt-6-luna` | GPT-6 Luna (default) |
+| | `openai` | alias for `gpt-6-luna` |
 | **Google Gemini** | `gemini-2.5-flash` | Best price-performance (default) |
 | | `gemini-2.5-pro` | Flagship thinking model with 1M token context |
 | | `gemini-2.5-flash-lite` | Most cost-effective model |
@@ -231,7 +221,7 @@ Choose from multiple AI providers:
 | **xAI** | `grok-code-fast-1` | Specialized for coding tasks |
 | | `grok`, `xai` | aliases for `grok-code-fast-1` |
 
-Current-generation Anthropic models run with adaptive thinking at medium effort. Opus 5 and Fable 5.1 requests opt into Anthropic's server-side refusal fallback, so a diff the safety classifiers decline is retried on a fallback model instead of failing the commit.
+Claude Sonnet 5.5 runs with adaptive thinking at medium effort. Requests opt into Anthropic's server-side refusal fallback, so a diff the safety classifiers decline is retried on a fallback model where one is available instead of failing the commit.
 
 ## Custom Prompts
 
