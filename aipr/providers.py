@@ -20,21 +20,17 @@ ANTHROPIC_EFFORT = "medium"
 # request the safety classifiers declined on a fallback model server-side.
 _FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
-# Models that reject an explicit thinking parameter entirely (thinking is
-# always on) and take effort via output_config only.
-_ALWAYS_THINKING = ("claude-fable-5",)
-
 # Models that reject sampling parameters (temperature returns a 400) and
 # support adaptive thinking plus output_config.effort.
-_ADAPTIVE_THINKING = (
-    "claude-opus-5",
-    "claude-opus-4-8",
-    "claude-sonnet-5",
-)
+_ADAPTIVE_THINKING = ("claude-sonnet-5-5",)
 
 # Models with refusal fallback targets published on /v1/models. Only these
 # accept the fallbacks parameter; sending it elsewhere is a 400.
-_HAS_FALLBACKS = ("claude-fable-5", "claude-opus-5")
+_HAS_FALLBACKS = ("claude-sonnet-5-5",)
+
+# OpenAI model families that take max_completion_tokens and reject a custom
+# temperature.
+_OPENAI_REASONING = ("gpt-5", "gpt-6")
 
 
 def _anthropic_extra_params(model: str) -> Dict[str, Any]:
@@ -50,8 +46,6 @@ def _anthropic_extra_params(model: str) -> Dict[str, Any]:
     Returns:
         Extra keyword arguments to pass to the messages.create call.
     """
-    if model.startswith(_ALWAYS_THINKING):
-        return {"output_config": {"effort": ANTHROPIC_EFFORT}}
     if model.startswith(_ADAPTIVE_THINKING):
         return {
             "thinking": {"type": "adaptive"},
@@ -292,11 +286,11 @@ def generate_with_openai(
         {"role": "user", "content": diff},
     ]
 
-    # GPT-5 series models have special requirements (same as Azure GPT-5):
+    # GPT-5 and GPT-6 series models have special requirements (same as Azure GPT-5):
     # - Use max_completion_tokens instead of max_tokens
     # - Only support default temperature (1.0), cannot customize
     # - Use reasoning tokens internally, need higher limits (reasoning + visible output)
-    if model.startswith("gpt-5"):
+    if model.startswith(_OPENAI_REASONING):
         kwargs = {
             "model": model,
             "messages": messages,

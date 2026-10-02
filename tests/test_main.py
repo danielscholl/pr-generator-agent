@@ -64,7 +64,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "anthropic"
-        assert model == "claude-opus-5"
+        assert model == "claude-sonnet-5-5"
 
     # Test with Azure key
     with patch.dict(
@@ -80,7 +80,7 @@ def test_detect_provider_and_model_defaults():
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
         provider, model = detect_provider_and_model(None)
         assert provider == "openai"
-        assert model == "gpt-5"
+        assert model == "gpt-6-luna"
 
     # Test with Gemini key
     with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True):
@@ -96,7 +96,7 @@ def test_detect_provider_and_model_defaults():
 
 
 def test_detect_provider_prefers_anthropic_over_azure():
-    """With every provider configured, the default is Claude Sonnet 5."""
+    """With every provider configured, the default is Claude Sonnet 5.5."""
     with patch.dict(
         "os.environ",
         {
@@ -109,20 +109,17 @@ def test_detect_provider_prefers_anthropic_over_azure():
         },
         clear=True,
     ):
-        assert detect_provider_and_model(None) == ("anthropic", "claude-opus-5")
+        assert detect_provider_and_model(None) == ("anthropic", "claude-sonnet-5-5")
 
 
 def test_detect_provider_and_model_aliases():
     """Test all documented model aliases"""
     test_cases = [
         # Simple provider aliases
-        ("claude", ("anthropic", "claude-opus-5")),
-        ("sonnet", ("anthropic", "claude-sonnet-5")),
-        ("opus", ("anthropic", "claude-opus-5")),
-        ("claude-opus", ("anthropic", "claude-opus-5")),
-        ("haiku", ("anthropic", "claude-haiku-4-5")),
+        ("claude", ("anthropic", "claude-sonnet-5-5")),
+        ("sonnet", ("anthropic", "claude-sonnet-5-5")),
         ("azure", ("azure", "gpt-5-nano")),  # Updated default
-        ("openai", ("openai", "gpt-5")),  # Updated default
+        ("openai", ("openai", "gpt-6-luna")),
         ("gemini", ("gemini", "gemini-2.5-flash")),  # Updated default
         ("grok", ("xai", "grok-code-fast-1")),  # New provider
         ("xai", ("xai", "grok-code-fast-1")),  # New provider
@@ -131,18 +128,10 @@ def test_detect_provider_and_model_aliases():
         ("azure/gpt-5-chat", ("azure", "gpt-5-chat")),
         ("azure/gpt-5-mini", ("azure", "gpt-5-mini")),
         ("azure/gpt-5-nano", ("azure", "gpt-5-nano")),
-        # OpenAI model aliases - only GPT-5 series
-        ("gpt-5", ("openai", "gpt-5")),
-        ("gpt-5-mini", ("openai", "gpt-5-mini")),
-        ("gpt-5-nano", ("openai", "gpt-5-nano")),
-        # Anthropic models - direct names (current + still-active legacy pins)
-        ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
-        ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
-        ("claude-opus-5", ("anthropic", "claude-opus-5")),
-        ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
-        ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
-        ("fable", ("anthropic", "claude-fable-5-1")),
-        ("claude-fable-5-1", ("anthropic", "claude-fable-5-1")),
+        # OpenAI models
+        ("gpt-6-luna", ("openai", "gpt-6-luna")),
+        # Anthropic models - direct names
+        ("claude-sonnet-5-5", ("anthropic", "claude-sonnet-5-5")),
         # Gemini model aliases - only 2.5 series
         ("gemini-2.5-pro", ("gemini", "gemini-2.5-pro")),
         ("gemini-2.5-flash", ("gemini", "gemini-2.5-flash")),
@@ -172,13 +161,16 @@ def test_detect_provider_and_model_azure():
 def test_detect_provider_and_model_openai():
     """Test OpenAI model detection"""
     test_cases = [
-        ("gpt-5", ("openai", "gpt-5")),
-        ("gpt-5-mini", ("openai", "gpt-5-mini")),
-        ("gpt-5-nano", ("openai", "gpt-5-nano")),
+        ("openai", ("openai", "gpt-6-luna")),
+        ("gpt-6-luna", ("openai", "gpt-6-luna")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
         assert (provider, model) == expected
+
+    for removed in ("gpt-5", "gpt-5-mini", "gpt-5-nano"):
+        with pytest.raises(ValueError, match="Unsupported OpenAI model"):
+            detect_provider_and_model(removed)
 
 
 def test_detect_provider_and_model_gemini():
@@ -197,26 +189,24 @@ def test_detect_provider_and_model_gemini():
 def test_detect_provider_and_model_anthropic():
     """Test Anthropic model detection"""
     test_cases = [
-        ("claude", ("anthropic", "claude-opus-5")),
-        ("sonnet", ("anthropic", "claude-sonnet-5")),
-        ("opus", ("anthropic", "claude-opus-5")),
-        ("claude-opus", ("anthropic", "claude-opus-5")),
-        ("haiku", ("anthropic", "claude-haiku-4-5")),
-        ("claude-sonnet-5", ("anthropic", "claude-sonnet-5")),
-        ("claude-sonnet-4-6", ("anthropic", "claude-sonnet-4-6")),
-        ("claude-opus-5", ("anthropic", "claude-opus-5")),
-        ("claude-haiku-4-5", ("anthropic", "claude-haiku-4-5")),
-        ("claude-opus-4-8", ("anthropic", "claude-opus-4-8")),
-        ("fable", ("anthropic", "claude-fable-5-1")),
-        ("claude-fable-5-1", ("anthropic", "claude-fable-5-1")),
+        ("claude", ("anthropic", "claude-sonnet-5-5")),
+        ("sonnet", ("anthropic", "claude-sonnet-5-5")),
+        ("claude-sonnet-5-5", ("anthropic", "claude-sonnet-5-5")),
     ]
     for input_model, expected in test_cases:
         provider, model = detect_provider_and_model(input_model)
         assert (provider, model) == expected
 
-    # Retired model IDs must now raise rather than silently 404 at the API
-    with pytest.raises(ValueError, match="Unsupported Anthropic model"):
-        detect_provider_and_model("claude-sonnet-4-20250514")
+    # An unrecognised name must raise rather than fall back to the env default
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True):
+        for removed in ("opus", "haiku", "fable"):
+            with pytest.raises(ValueError, match="Unsupported model"):
+                detect_provider_and_model(removed)
+
+    # Removed model IDs must raise rather than silently 404 at the API
+    for removed in ("claude-sonnet-4-20250514", "claude-sonnet-5", "claude-opus-5"):
+        with pytest.raises(ValueError, match="Unsupported Anthropic model"):
+            detect_provider_and_model(removed)
 
 
 # Trivy Scanning Tests
@@ -759,7 +749,7 @@ def mock_trivy():
 
 def test_main_anthropic(mock_repo, mock_anthropic):
     args = Mock(
-        model="claude-opus-4-8",
+        model="claude-sonnet-5-5",
         target="-",
         vulns=False,
         silent=True,
@@ -781,7 +771,9 @@ def test_main_anthropic(mock_repo, mock_anthropic):
 @patch("aipr.main.generate_with_openai")
 def test_main_openai(mock_openai_gen, mock_azure_gen, mock_anthropic_gen, mock_repo):
     """Test main function with OpenAI"""
-    args = Mock(model="gpt-5", target="-", vulns=False, silent=True, verbose=False, prompt=None)
+    args = Mock(
+        model="gpt-6-luna", target="-", vulns=False, silent=True, verbose=False, prompt=None
+    )
     mock_openai_gen.return_value = "Test description"
 
     with patch("aipr.main.parse_args", return_value=args):
@@ -838,7 +830,7 @@ def test_main_with_vulns(
 ):
     """Test main function with vulnerability scanning"""
     args = Mock(
-        model="gpt-5",
+        model="gpt-6-luna",
         target="-",
         vulns=True,
         silent=True,
@@ -897,9 +889,9 @@ def test_main_with_vulns(
 def test_detect_provider_and_model():
     """Test provider and model detection"""
     # Test Anthropic models
-    provider, model = detect_provider_and_model("claude-opus-4-8")
+    provider, model = detect_provider_and_model("claude-sonnet-5-5")
     assert provider == "anthropic"
-    assert model == "claude-opus-4-8"
+    assert model == "claude-sonnet-5-5"
 
     # Test Azure OpenAI models with explicit azure/ prefix
     with patch.dict(
@@ -916,9 +908,9 @@ def test_detect_provider_and_model():
 
     # Test OpenAI models
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-        provider, model = detect_provider_and_model("gpt-5")
+        provider, model = detect_provider_and_model("gpt-6-luna")
         assert provider == "openai"
-        assert model == "gpt-5"
+        assert model == "gpt-6-luna"
 
 
 def test_prompt_manager():
@@ -997,7 +989,7 @@ def test_provider_clients(mock_anthropic, mock_azure, mock_openai):
 
     # Test OpenAI
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-        result = generate_with_openai("test", None, "gpt-5", "test prompt")
+        result = generate_with_openai("test", None, "gpt-6-luna", "test prompt")
         assert result == "Test response"
         mock_openai.assert_called_once()
 
@@ -1259,7 +1251,7 @@ class TestCommitRangeFunctionality:
         mock_repo = MagicMock()
         mock_repo_class.return_value = mock_repo
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-6")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-5-5")
         mock_get_diff.return_value = ("commit range diff content", {"total": 1, "files": []})
         mock_generate.return_value = "feat: add new feature from commit range"
 
@@ -1303,7 +1295,7 @@ class TestCommitRangeFunctionality:
 
         # Setup mocks
         mock_determine_mode.return_value = "range"
-        mock_detect.return_value = ("anthropic", "claude-sonnet-4-6")
+        mock_detect.return_value = ("anthropic", "claude-sonnet-5-5")
         mock_get_diff.return_value = ("commit range diff content", {"files": [], "total": 0})
         mock_generate.return_value = "PR description from commit range"
 
@@ -1481,49 +1473,27 @@ class TestCommitRangeFunctionality:
 class TestAnthropicRequestParams:
     """Per-model Anthropic request parameter selection."""
 
-    def test_sonnet_5_uses_adaptive_thinking_and_effort(self):
-        """Sonnet 5 rejects temperature and takes adaptive thinking plus effort."""
+    def test_sonnet_5_5_uses_adaptive_thinking_and_effort(self):
+        """Sonnet 5.5 rejects temperature and takes adaptive thinking plus effort."""
         from aipr.providers import ANTHROPIC_EFFORT, _anthropic_extra_params
 
-        params = _anthropic_extra_params("claude-sonnet-5")
+        params = _anthropic_extra_params("claude-sonnet-5-5")
         assert "temperature" not in params
         assert params["thinking"] == {"type": "adaptive"}
         assert params["output_config"] == {"effort": ANTHROPIC_EFFORT}
 
-    def test_opus_5_uses_adaptive_thinking_and_effort(self):
-        """Opus 5 rejects temperature and disabled thinking leaks tags."""
+    def test_unclassified_models_keep_temperature(self):
+        """A model outside the adaptive-thinking table gets the low-temperature setting."""
         from aipr.providers import _anthropic_extra_params
 
-        params = _anthropic_extra_params("claude-opus-5")
-        assert "temperature" not in params
-        assert params["thinking"] == {"type": "adaptive"}
-        assert "effort" in params["output_config"]
-
-    def test_fable_5_1_omits_thinking_parameter(self):
-        """Fable 5.1 rejects any explicit thinking config; effort is the only lever."""
-        from aipr.providers import _anthropic_extra_params
-
-        params = _anthropic_extra_params("claude-fable-5-1")
-        assert "thinking" not in params
-        assert "temperature" not in params
-        assert "effort" in params["output_config"]
-
-    def test_legacy_models_keep_temperature(self):
-        """Older Anthropic models keep the low-temperature setting."""
-        from aipr.providers import _anthropic_extra_params
-
-        for model in ("claude-sonnet-4-6", "claude-haiku-4-5"):
-            params = _anthropic_extra_params(model)
-            assert params == {"temperature": 0.2}
+        assert _anthropic_extra_params("claude-3") == {"temperature": 0.2}
 
     def test_fallbacks_only_on_models_with_targets(self):
         """Only models that publish fallback targets accept the parameter."""
         from aipr.providers import _anthropic_uses_fallbacks
 
-        assert _anthropic_uses_fallbacks("claude-fable-5-1")
-        assert _anthropic_uses_fallbacks("claude-opus-5")
+        assert _anthropic_uses_fallbacks("claude-sonnet-5-5")
         assert not _anthropic_uses_fallbacks("claude-sonnet-5")
-        assert not _anthropic_uses_fallbacks("claude-haiku-4-5")
 
     def test_every_supported_anthropic_model_is_classified(self):
         """Guard the coupling between main.py's allowlist and the params table.
@@ -1534,25 +1504,12 @@ class TestAnthropicRequestParams:
         """
         from aipr.providers import _anthropic_extra_params
 
-        rejects_sampling = {
-            "claude-fable-5-1",
-            "claude-opus-5",
-            "claude-sonnet-5",
-            "claude-opus-4-8",
-        }
-        accepts_sampling = {
-            "claude-haiku-4-5",
-            "claude-sonnet-4-6",
-        }
-
-        for model in rejects_sampling | accepts_sampling:
-            provider, resolved = detect_provider_and_model(model)
-            assert (provider, resolved) == ("anthropic", model)
+        rejects_sampling = {"claude-sonnet-5-5"}
 
         for model in rejects_sampling:
+            provider, resolved = detect_provider_and_model(model)
+            assert (provider, resolved) == ("anthropic", model)
             assert "temperature" not in _anthropic_extra_params(model)
-        for model in accepts_sampling:
-            assert _anthropic_extra_params(model) == {"temperature": 0.2}
 
 
 class TestAnthropicResponseHandling:
@@ -1617,30 +1574,42 @@ class TestAnthropicResponseHandling:
         assert _format_api_error(RuntimeError("boom")) == "boom"
 
     @patch("aipr.providers.anthropic.Anthropic")
-    def test_opus_5_request_goes_through_beta_with_fallbacks(self, mock_anthropic):
+    def test_sonnet_5_5_request_goes_through_beta_with_fallbacks(self, mock_anthropic):
         """Models with fallback targets use the beta endpoint and default fallbacks."""
         client = mock_anthropic.return_value
         client.beta.messages.create.return_value = self._response(
             [{"type": "text", "text": "feat: x"}]
         )
-        result = generate_with_anthropic("diff", None, "claude-opus-5", "system")
+        result = generate_with_anthropic("diff", None, "claude-sonnet-5-5", "system")
         assert result == "feat: x"
         kwargs = client.beta.messages.create.call_args.kwargs
         assert kwargs["fallbacks"] == "default"
         assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
         assert kwargs["thinking"] == {"type": "adaptive"}
+        assert kwargs["output_config"] == {"effort": "medium"}
         client.messages.create.assert_not_called()
 
     @patch("aipr.providers.anthropic.Anthropic")
-    def test_sonnet_5_request_uses_stable_endpoint(self, mock_anthropic):
+    def test_model_without_fallbacks_uses_stable_endpoint(self, mock_anthropic):
         """Models without fallback targets stay on the stable endpoint."""
         client = mock_anthropic.return_value
         client.messages.create.return_value = self._response([{"type": "text", "text": "ok"}])
-        assert generate_with_anthropic("diff", None, "claude-sonnet-5", "system") == "ok"
-        kwargs = client.messages.create.call_args.kwargs
-        assert "fallbacks" not in kwargs
-        assert kwargs["output_config"] == {"effort": "medium"}
+        assert generate_with_anthropic("diff", None, "claude-3", "system") == "ok"
+        assert "fallbacks" not in client.messages.create.call_args.kwargs
         client.beta.messages.create.assert_not_called()
+
+
+@patch("aipr.providers.OpenAI")
+def test_gpt_6_request_uses_max_completion_tokens(mock_openai):
+    """GPT-6 rejects max_tokens and a custom temperature."""
+    mock_openai.return_value.chat.completions.create.return_value.choices = [
+        type("Choice", (), {"message": type("Message", (), {"content": "ok"})()})()
+    ]
+    assert generate_with_openai("d", None, "gpt-6-luna", "s") == "ok"
+    kwargs = mock_openai.return_value.chat.completions.create.call_args.kwargs
+    assert "max_completion_tokens" in kwargs
+    assert "max_tokens" not in kwargs
+    assert "temperature" not in kwargs
 
 
 class TestSubjectLengthRetry:
@@ -1664,7 +1633,7 @@ class TestSubjectLengthRetry:
         assert "x" * 80 in ctx
 
     @patch("aipr.main.CommitAnalyzer")
-    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5-5"))
     @patch("aipr.main.generate_commit_message")
     def test_overlong_subject_triggers_single_retry(self, mock_gen, mock_detect, mock_analyzer):
         """An over-long subject causes exactly one regeneration."""
@@ -1683,7 +1652,7 @@ class TestSubjectLengthRetry:
         assert "feat(scope): short subject" in printed
 
     @patch("aipr.main.CommitAnalyzer")
-    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5-5"))
     @patch("aipr.main.generate_commit_message", return_value="fix: short")
     def test_short_subject_does_not_retry(self, mock_gen, mock_detect, mock_analyzer):
         """A subject within the cap is accepted on the first call."""
@@ -1714,7 +1683,7 @@ class TestInputBudgetGuard:
         assert any("Nothing was sent" in str(c) for c in mock_print.call_args_list)
 
     @patch("aipr.main.CommitAnalyzer")
-    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5"))
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5-5"))
     @patch("aipr.main.generate_commit_message", return_value="chore: bump lock")
     def test_lock_file_noise_is_stripped_before_generation(self, mock_gen, mock_detect, mock_an):
         """Lock file contents never reach the provider."""
@@ -1735,7 +1704,7 @@ class TestRepoHintsInCommitContext:
     """Repo hints are appended to the commit context in staged mode."""
 
     @patch("aipr.main.CommitAnalyzer")
-    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-opus-5"))
+    @patch("aipr.main.detect_provider_and_model", return_value=("anthropic", "claude-sonnet-5-5"))
     @patch("aipr.main.generate_commit_message", return_value="fix: x")
     def test_hints_follow_author_context(self, mock_gen, mock_detect, mock_an):
         """Author context comes first, then the branch and history hints."""

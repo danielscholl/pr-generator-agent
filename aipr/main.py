@@ -34,18 +34,12 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
     """Detect which provider and model to use based on environment and args."""
     if model:
         # Handle simple aliases first
-        if model == "claude" or model == "opus" or model == "claude-opus":
-            return "anthropic", "claude-opus-5"  # Default: Claude Opus 5
-        if model == "sonnet":
-            return "anthropic", "claude-sonnet-5"  # Lower cost, looser format adherence
-        if model == "haiku":
-            return "anthropic", "claude-haiku-4-5"  # Fastest, most economical
-        if model == "fable":
-            return "anthropic", "claude-fable-5-1"  # Most capable, highest cost
+        if model == "claude" or model == "sonnet":
+            return "anthropic", "claude-sonnet-5-5"  # Default: Claude Sonnet 5.5
         if model == "azure":
             return "azure", "gpt-5-nano"  # Maps to deployment name in Azure
         if model == "openai":
-            return "openai", "gpt-5"  # New default for OpenAI
+            return "openai", "gpt-6-luna"
         if model == "gemini":
             return "gemini", "gemini-2.5-flash"  # Updated default for Gemini
         if model == "grok" or model == "xai":
@@ -80,12 +74,10 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
                 )
             return "gemini", gemini_models[model]
 
-        # Handle OpenAI models - only GPT-5 series
+        # Handle OpenAI models
         if model.startswith("gpt"):
             openai_models = {
-                "gpt-5": "gpt-5",
-                "gpt-5-mini": "gpt-5-mini",
-                "gpt-5-nano": "gpt-5-nano",
+                "gpt-6-luna": "gpt-6-luna",
             }
             if model not in openai_models:
                 raise ValueError(
@@ -93,16 +85,10 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
                 )
             return "openai", openai_models[model]
 
-        # Handle Anthropic models - current generation plus still-served previous
-        # generation. Every entry must be classified in providers.py.
+        # Handle Anthropic models. Every entry must be classified in providers.py.
         if model.startswith("claude"):
             anthropic_models = {
-                "claude-fable-5-1": "claude-fable-5-1",
-                "claude-opus-5": "claude-opus-5",
-                "claude-sonnet-5": "claude-sonnet-5",
-                "claude-haiku-4-5": "claude-haiku-4-5",
-                "claude-opus-4-8": "claude-opus-4-8",
-                "claude-sonnet-4-6": "claude-sonnet-4-6",
+                "claude-sonnet-5-5": "claude-sonnet-5-5",
             }
             if model not in anthropic_models:
                 raise ValueError(
@@ -115,15 +101,16 @@ def detect_provider_and_model(model: Optional[str]) -> Tuple[str, str]:
         if model == "grok-code-fast-1":
             return "xai", "grok-code-fast-1"
 
+        raise ValueError(f"Unsupported model: {model}. Run 'aipr --help' for supported models.")
+
     # No model specified, check environment for default.
-    # Anthropic has highest priority: conventional-commit type selection degrades
-    # badly on lightweight models, so the default must be a frontier model.
+    # Anthropic has highest priority.
     if os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"):
-        return "anthropic", "claude-opus-5"  # Default provider and model
+        return "anthropic", "claude-sonnet-5-5"  # Default provider and model
     if os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_API_KEY"):
         return "azure", "gpt-5-nano"
     if os.getenv("OPENAI_API_KEY"):
-        return "openai", "gpt-5"
+        return "openai", "gpt-6-luna"
     if os.getenv("GEMINI_API_KEY"):
         return "gemini", "gemini-2.5-flash"
     if os.getenv("XAI_API_KEY"):
@@ -445,12 +432,9 @@ def parse_args(args=None):
         formatter_class=ColorHelpFormatter,
         epilog=f"""
 recommended models:
-  {GREEN}claude{ENDC} (default)               Anthropic Claude Opus 5
-  {YELLOW}sonnet{ENDC}                         Anthropic Claude Sonnet 5
-  {YELLOW}haiku{ENDC}                          Anthropic Claude Haiku 4.5
-  {YELLOW}fable{ENDC}                          Anthropic Claude Fable 5.1
+  {GREEN}claude{ENDC} (default)               Anthropic Claude Sonnet 5.5
   {YELLOW}azure{ENDC}                          Azure OpenAI GPT-5 Nano
-  {YELLOW}gpt-5{ENDC}                          OpenAI GPT-5
+  {YELLOW}openai{ENDC}                         OpenAI GPT-6 Luna
   {YELLOW}gemini{ENDC}                         Google Gemini 2.5 Flash
   {YELLOW}grok{ENDC}                           xAI Grok Code Fast 1
 
